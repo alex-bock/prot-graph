@@ -2,7 +2,8 @@
 import os
 import urllib.request
 
-from Bio.PDB import PDBParser, Structure
+from Bio.PDB import PDBParser
+from Bio.PDB.Structure import Structure
 
 
 DEFAULT_PDB_CACHE_DIR = "./data/pdb/"
@@ -34,7 +35,7 @@ class PDB:
 
         return
 
-    def load_pdb_structure(self, pdb_id: str) -> Structure.Structure:
+    def load_pdb_structure(self, pdb_id: str) -> Structure:
 
         pdb_fp = os.path.join(self.cache_dir, pdb_id + PDB_EXT)
 
