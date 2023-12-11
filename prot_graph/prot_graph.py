@@ -39,8 +39,8 @@ class ProtGraph:
     def __init__(
         self,
         pdb_struct: Structure,
-        radius: float = None,
-        k: int = None,
+        radius: float = 0.0,
+        k: int = 0,
         seq: bool = False
     ):
 
@@ -55,8 +55,8 @@ class ProtGraph:
     @staticmethod
     def build_graph(
         pdb_struct: Structure,
-        radius: float = None,
-        k: int = None,
+        radius: float = 0.0,
+        k: int = 0,
         seq: bool = False
     ):
 
@@ -95,47 +95,45 @@ class ProtGraph:
     @staticmethod
     def add_edges(
         nodes: Dict[str, Residue],
-        radius: float = None,
-        k: int = None,
+        radius: float = 0.0,
+        k: int = 0,
         seq: bool = False
     ) -> List[Edge]:
 
         res_list = list(nodes.values())
         edges = list()
 
-        if radius is not None:
-            radius_adj_mat = radius_neighbors_graph(
-                [res.pos for res in res_list],
-                radius,
-                mode="distance",
-                metric="euclidean"
-            )
-            for i, n1 in enumerate(res_list):
-                for j, n2 in enumerate(res_list[(i + 1):]):
-                    dist = radius_adj_mat[i, (i + 1) + j]
-                    if dist > 0:
-                        edges.append(
-                            Edge(u=n1.id, v=n2.id, weight=dist, type="radius")
-                        )
-
-        if k is not None:
+        radius_adj_mat = radius_neighbors_graph(
+            [res.pos for res in res_list],
+            radius,
+            mode="distance",
+            metric="euclidean"
+        )
+        if k > 0:
             k_adj_mat = kneighbors_graph(
                 [res.pos for res in res_list],
                 k,
                 mode="distance",
                 metric="euclidean"
             )
-            for i, n1 in enumerate(res_list):
-                for j, n2 in enumerate(res_list[(i + 1):]):
-                    dist = k_adj_mat[i, (i + 1) + j]
-                    if dist > 0:
-                        edges.append(
-                            Edge(u=n1.id, v=n2.id, weight=dist, type="k")
+        else:
+            k_adj_mat = np.zeros((len(res_list), len(res_list)))
+
+        for i, n1 in enumerate(res_list):
+            for j, n2 in enumerate(res_list[(i + 1):]):
+                radius_dist = radius_adj_mat[i, (i + 1) + j]
+                if radius_dist > 0:
+                    edges.append(
+                        Edge(
+                            u=n1.id, v=n2.id, weight=radius_dist, type="radius"
                         )
-        
-        if seq is not None:
-            for n1 in res_list:
-                for n2 in res_list:
+                    )
+                k_dist = k_adj_mat[i, (i + 1) + j]
+                if k_dist > 0:
+                    edges.append(
+                        Edge(u=n1.id, v=n2.id, weight=k_dist, type="k")
+                    )
+                if seq:
                     if n1.chain == n2.chain and n1.chain_i == n2.chain_i - 1:
                         edges.append(
                             Edge(u=n1.id, v=n2.id, weight=1, type="seq")
