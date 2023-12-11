@@ -6,12 +6,13 @@ from Bio.PDB.Structure import Structure
 import numpy as np
 from plotly.express.colors import sample_colorscale
 import plotly.graph_objects as go
-from sklearn.neighbors import radius_neighbors_graph
+from sklearn.neighbors import radius_neighbors_graph, kneighbors_graph
 from sklearn.preprocessing import minmax_scale
 
 
 C_ALPHA = "CA"
 DEFAULT_NODE_RADIUS = 10.0
+DEFAULT_K = 10
 
 
 @dataclass
@@ -28,7 +29,8 @@ class Edge:
 
     u: str
     v: str
-    weight: str
+    weight: float
+    type: str
 
 
 class ProtGraph:
@@ -36,20 +38,25 @@ class ProtGraph:
     def __init__(
         self,
         pdb_struct: Structure,
-        radius: float = DEFAULT_NODE_RADIUS
+        radius: float = None,
+        k: int = None
     ):
 
         self.pdb_id = pdb_struct.get_id()
-        self.nodes, self.edges = ProtGraph.build_graph(pdb_struct, radius)
+        self.nodes, self.edges = ProtGraph.build_graph(
+            pdb_struct, radius=radius, k=k
+        )
         self.n = len(self.nodes.keys())
 
         return
 
     @staticmethod
-    def build_graph(pdb_struct: Structure, radius: float):
+    def build_graph(
+        pdb_struct: Structure, radius: float = None, k: int = None
+    ):
 
         nodes = ProtGraph.populate_nodes(pdb_struct)
-        edges = ProtGraph.create_edges(nodes, radius)
+        edges = ProtGraph.add_edges(nodes, radius=radius, k=k)
 
         return nodes, edges
 
@@ -80,22 +87,42 @@ class ProtGraph:
         return nodes
 
     @staticmethod
-    def create_edges(nodes: Dict[str, Residue], radius: float) -> List[Edge]:
+    def add_edges(
+        nodes: Dict[str, Residue], radius: float = None, k: int = None
+    ) -> List[Edge]:
 
         res_list = list(nodes.values())
-        adj_mat = radius_neighbors_graph(
-            [res.pos for res in res_list],
-            radius,
-            mode="distance",
-            metric="euclidean"
-        )
-
         edges = list()
-        for i, n1 in enumerate(res_list):
-            for j, n2 in enumerate(res_list[(i + 1):]):
-                dist = adj_mat[i, (i + 1) + j]
-                if dist > 0:
-                    edges.append(Edge(u=n1.id, v=n2.id, weight=dist))
+
+        if radius is not None:
+            radius_adj_mat = radius_neighbors_graph(
+                [res.pos for res in res_list],
+                radius,
+                mode="distance",
+                metric="euclidean"
+            )
+            for i, n1 in enumerate(res_list):
+                for j, n2 in enumerate(res_list[(i + 1):]):
+                    dist = radius_adj_mat[i, (i + 1) + j]
+                    if dist > 0:
+                        edges.append(
+                            Edge(u=n1.id, v=n2.id, weight=dist, type="radius")
+                        )
+
+        if k is not None:
+            k_adj_mat = kneighbors_graph(
+                [res.pos for res in res_list],
+                k,
+                mode="distance",
+                metric="euclidean"
+            )
+            for i, n1 in enumerate(res_list):
+                for j, n2 in enumerate(res_list[(i + 1):]):
+                    dist = k_adj_mat[i, (i + 1) + j]
+                    if dist > 0:
+                        edges.append(
+                            Edge(u=n1.id, v=n2.id, weight=dist, type="k")
+                        )
 
         return edges
 
@@ -115,78 +142,88 @@ class ProtGraph:
 
         return neighbors
 
-    def visualize(self, color_field: str = "chain"):
+    def visualize(self, node_color: str = "chain", edge_color: str = "type"):
 
         fig = go.Figure()
 
-        vals = set([getattr(res, color_field) for res in self.nodes.values()])
-        color_scale = sample_colorscale(
-            "viridis", minmax_scale(range(len(vals)))
+        node_vals = set(
+            [getattr(res, node_color) for res in self.nodes.values()]
         )
-        val_colors = {val: color_scale[i] for i, val in enumerate(vals)}
+        node_color_scale = sample_colorscale(
+            "viridis", minmax_scale(range(len(node_vals)))
+        )
+        val_colors = {
+            val: node_color_scale[i] for i, val in enumerate(node_vals)
+        }
 
-        for val in vals:
+        for val in node_vals:
             fig.add_trace(
                 go.Scatter3d(
                     x=[
                         res.pos[0] for res in self.nodes.values()
-                        if getattr(res, color_field) == val
+                        if getattr(res, node_color) == val
                     ],
                     y=[
                         res.pos[1] for res in self.nodes.values()
-                        if getattr(res, color_field) == val
+                        if getattr(res, node_color) == val
                     ],
                     z=[
                         res.pos[2] for res in self.nodes.values()
-                        if getattr(res, color_field) == val
+                        if getattr(res, node_color) == val
                     ],
                     mode="markers",
                     marker=dict(
                         symbol="circle",
-                        size=6,
+                        size=3,
                         color=val_colors[val]
                     ),
                     text=[res.id for res in self.nodes.values()],
                     hoverinfo="text",
-                    name=f"{color_field}: {val}",
+                    name=f"{node_color}: {val}",
                     legend="legend1"
                 )
             )
 
-        fig.add_trace(
-            go.Scatter3d(
-                x=[
-                    c for edge in self.edges
-                    for c in [
-                        self.nodes[edge.u].pos[0],
-                        self.nodes[edge.v].pos[0],
-                        None
-                    ]
-                ],
-                y=[
-                    c for edge in self.edges
-                    for c in [
-                        self.nodes[edge.u].pos[1],
-                        self.nodes[edge.v].pos[1],
-                        None
-                    ]
-                ],
-                z=[
-                    c for edge in self.edges
-                    for c in [
-                        self.nodes[edge.u].pos[2],
-                        self.nodes[edge.v].pos[2],
-                        None
-                    ]
-                ],
-                mode="lines",
-                line=dict(color="grey"),
-                text=[str(edge.weight) for edge in self.edges],
-                hoverinfo="text",
-                legend="legend2",
-                opacity=0.5
+        edge_vals = set([getattr(edge, edge_color) for edge in self.edges])
+        edge_colors = {val: i for i, val in enumerate(edge_vals)}
+        for val in edge_vals:
+            fig.add_trace(
+                go.Scatter3d(
+                    x=[
+                        c for edge in self.edges
+                        for c in [
+                            self.nodes[edge.u].pos[0],
+                            self.nodes[edge.v].pos[0],
+                            None
+                        ]
+                        if getattr(edge, edge_color) == val
+                    ],
+                    y=[
+                        c for edge in self.edges
+                        for c in [
+                            self.nodes[edge.u].pos[1],
+                            self.nodes[edge.v].pos[1],
+                            None
+                        ]
+                        if getattr(edge, edge_color) == val
+                    ],
+                    z=[
+                        c for edge in self.edges
+                        for c in [
+                            self.nodes[edge.u].pos[2],
+                            self.nodes[edge.v].pos[2],
+                            None
+                        ]
+                        if getattr(edge, edge_color) == val
+                    ],
+                    mode="lines",
+                    line=dict(color=edge_colors[val]),
+                    text=[str(edge.weight) for edge in self.edges],
+                    hoverinfo="text",
+                    legend="legend2",
+                    opacity=0.5
+                )
             )
-        )
 
         fig.show()
 
