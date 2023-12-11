@@ -20,6 +20,7 @@ class Residue:
 
     id: int
     chain: str
+    chain_i: int
     aa_id: str
     pos: np.ndarray
 
@@ -39,12 +40,13 @@ class ProtGraph:
         self,
         pdb_struct: Structure,
         radius: float = None,
-        k: int = None
+        k: int = None,
+        seq: bool = False
     ):
 
         self.pdb_id = pdb_struct.get_id()
         self.nodes, self.edges = ProtGraph.build_graph(
-            pdb_struct, radius=radius, k=k
+            pdb_struct, radius=radius, k=k, seq=seq
         )
         self.n = len(self.nodes.keys())
 
@@ -52,11 +54,14 @@ class ProtGraph:
 
     @staticmethod
     def build_graph(
-        pdb_struct: Structure, radius: float = None, k: int = None
+        pdb_struct: Structure,
+        radius: float = None,
+        k: int = None,
+        seq: bool = False
     ):
 
         nodes = ProtGraph.populate_nodes(pdb_struct)
-        edges = ProtGraph.add_edges(nodes, radius=radius, k=k)
+        edges = ProtGraph.add_edges(nodes, radius=radius, k=k, seq=seq)
 
         return nodes, edges
 
@@ -80,6 +85,7 @@ class ProtGraph:
                 nodes[res_id] = Residue(
                     id=res_id,
                     chain=chain_id,
+                    chain_i=i,
                     aa_id=res.get_resname(),
                     pos=c_alpha.get_coord()
                 )
@@ -88,7 +94,10 @@ class ProtGraph:
 
     @staticmethod
     def add_edges(
-        nodes: Dict[str, Residue], radius: float = None, k: int = None
+        nodes: Dict[str, Residue],
+        radius: float = None,
+        k: int = None,
+        seq: bool = False
     ) -> List[Edge]:
 
         res_list = list(nodes.values())
@@ -122,6 +131,14 @@ class ProtGraph:
                     if dist > 0:
                         edges.append(
                             Edge(u=n1.id, v=n2.id, weight=dist, type="k")
+                        )
+        
+        if seq is not None:
+            for n1 in res_list:
+                for n2 in res_list:
+                    if n1.chain == n2.chain and n1.chain_i == n2.chain_i - 1:
+                        edges.append(
+                            Edge(u=n1.id, v=n2.id, weight=1, type="seq")
                         )
 
         return edges
@@ -219,6 +236,7 @@ class ProtGraph:
                     mode="lines",
                     line=dict(color=edge_colors[val]),
                     text=[str(edge.weight) for edge in self.edges],
+                    name=val,
                     hoverinfo="text",
                     legend="legend2",
                     opacity=0.5
