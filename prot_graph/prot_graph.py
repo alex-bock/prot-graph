@@ -41,12 +41,13 @@ class ProtGraph:
         pdb_struct: Structure,
         radius: float = 0.0,
         k: int = 0,
-        seq: bool = False
+        seq: bool = False,
+        bridge_chains: bool = True
     ):
 
         self.pdb_id = pdb_struct.get_id()
         self.nodes, self.edges = ProtGraph.build_graph(
-            pdb_struct, radius=radius, k=k, seq=seq
+            pdb_struct, radius=radius, k=k, seq=seq, bridge_chains=bridge_chains
         )
         self.n = len(self.nodes.keys())
 
@@ -57,7 +58,8 @@ class ProtGraph:
         pdb_struct: Structure,
         radius: float = 0.0,
         k: int = 0,
-        seq: bool = False
+        seq: bool = False,
+        bridge_chains: bool = True
     ):
 
         nodes = ProtGraph.populate_nodes(pdb_struct)
@@ -97,7 +99,8 @@ class ProtGraph:
         nodes: Dict[str, Residue],
         radius: float = 0.0,
         k: int = 0,
-        seq: bool = False
+        seq: bool = False,
+        bridge_chains: bool = True
     ) -> List[Edge]:
 
         res_list = list(nodes.values())
@@ -121,6 +124,8 @@ class ProtGraph:
 
         for i, n1 in enumerate(res_list):
             for j, n2 in enumerate(res_list[(i + 1):]):
+                if n1.chain != n2.chain and not bridge_chains:
+                    continue
                 radius_dist = radius_adj_mat[i, (i + 1) + j]
                 if radius_dist > 0:
                     edges.append(
