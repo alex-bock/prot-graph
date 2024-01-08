@@ -63,7 +63,7 @@ class ProtGraph:
     ):
 
         nodes = ProtGraph.populate_nodes(pdb_struct)
-        edges = ProtGraph.add_edges(nodes, radius=radius, k=k, seq=seq)
+        edges = ProtGraph.add_edges(nodes, radius=radius, k=k, seq=seq, bridge_chains=bridge_chains)
 
         return nodes, edges
 
