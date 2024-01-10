@@ -5,7 +5,10 @@ import itertools
 from Bio.PDB.Structure import Structure
 from networkx import MultiGraph
 import numpy as np
+from plotly.colors import sample_colorscale
+import plotly.graph_objects as go
 from sklearn.neighbors import kneighbors_graph
+from sklearn.preprocessing import minmax_scale
 from scipy.spatial.distance import euclidean
 
 
@@ -85,12 +88,7 @@ class ProtGraph:
                 u[1]["data"].chain_i - v[1]["data"].chain_i
                ) == 1:
                 self.graph.add_edge(
-                    u[0],
-                    v[0],
-                    data=Edge(
-                        type="seq",
-                        weight=None
-                    )
+                    u[0], v[0], data=Edge(type="seq", weight=None)
                 )
                 n_edges += 1
 
@@ -108,12 +106,7 @@ class ProtGraph:
                 continue
             elif euclidean(u[1]["data"].pos, v[1]["data"].pos) <= r:
                 self.graph.add_edge(
-                    u[0],
-                    v[0],
-                    data=Edge(
-                        type="radius",
-                        weight=None
-                    )
+                    u[0], v[0], data=Edge(type="radius", weight=None)
                 )
                 n_edges += 1
 
@@ -142,158 +135,113 @@ class ProtGraph:
 
         return
 
-    # @staticmethod
-    # def add_edges(
-    #     nodes: Dict[str, Residue],
-    #     radius: float = 0.0,
-    #     k: int = 0,
-    #     seq: bool = False,
-    #     bridge_chains: bool = True
-    # ) -> List[Edge]:
+    def visualize(
+        self, color_node_by: str = "chain", color_edge_by: str = "type"
+    ):
 
-    #     res_list = list(nodes.values())
-    #     edges = list()
+        fig = go.Figure()
 
-    #     radius_adj_mat = radius_neighbors_graph(
-    #         [res.pos for res in res_list],
-    #         radius,
-    #         mode="distance",
-    #         metric="euclidean"
-    #     )
-    #     if k > 0:
-    #         k_adj_mat = kneighbors_graph(
-    #             [res.pos for res in res_list],
-    #             k,
-    #             mode="distance",
-    #             metric="euclidean"
-    #         )
-    #     else:
-    #         k_adj_mat = np.zeros((len(res_list), len(res_list)))
+        self._plot_nodes(fig, color_node_by)
+        self._draw_edges(fig, color_edge_by)
 
-    #     for i, n1 in enumerate(res_list):
-    #         for j, n2 in enumerate(res_list[(i + 1):]):
-    #             if n1.chain != n2.chain and not bridge_chains:
-    #                 continue
-    #             radius_dist = radius_adj_mat[i, (i + 1) + j]
-    #             if radius_dist > 0:
-    #                 edges.append(
-    #                     Edge(
-    #                         u=n1.id, v=n2.id, weight=radius_dist, type="radius"
-    #                     )
-    #                 )
-    #             k_dist = k_adj_mat[i, (i + 1) + j]
-    #             if k_dist > 0:
-    #                 edges.append(
-    #                     Edge(u=n1.id, v=n2.id, weight=k_dist, type="k")
-    #                 )
-    #             if seq:
-    #                 if n1.chain == n2.chain and n1.chain_i == n2.chain_i - 1:
-    #                     edges.append(
-    #                         Edge(u=n1.id, v=n2.id, weight=1, type="seq")
-    #                     )
+        fig.show()
 
-    #     return edges
+        return
 
-    # @property
-    # def __len__(self) -> int:
+    def _plot_nodes(self, fig: go.Figure, color_field: str):
 
-    #     return self.n
+        field_vals = set([
+            getattr(node[1]["data"], color_field)
+            for node in self.graph.nodes(data=True)
+        ])
+        color_scale = sample_colorscale(
+            "viridis", minmax_scale(range(len(field_vals)))
+        )
+        val_color_map = {
+            val: color_scale[i] for i, val in enumerate(field_vals)
+        }
 
-    # def get_neighbors(self, res_id: str) -> List[str]:
+        for val in field_vals:
+            fig.add_trace(
+                go.Scatter3d(
+                    x=[
+                        node[1]["data"].pos[0]
+                        for node in self.graph.nodes(data=True)
+                        if getattr(node[1]["data"], color_field) == val
+                    ],
+                    y=[
+                        node[1]["data"].pos[1]
+                        for node in self.graph.nodes(data=True)
+                        if getattr(node[1]["data"], color_field) == val
+                    ],
+                    z=[
+                        node[1]["data"].pos[2]
+                        for node in self.graph.nodes(data=True)
+                        if getattr(node[1]["data"], color_field) == val
+                    ],
+                    mode="markers",
+                    marker=dict(
+                        symbol="circle",
+                        size=3,
+                        color=val_color_map[val]
+                    ),
+                    text=[
+                        node[1]["data"].res_id
+                        for node in self.graph.nodes(data=True)
+                    ],
+                    hoverinfo="text",
+                    name=f"{color_field}: {val}",
+                    legend="legend1"
+                )
+            )
 
-    #     neighbors = list()
-    #     for edge in self.edges:
-    #         if edge.u == res_id:
-    #             neighbors.append(edge.v)
-    #         elif edge.v == res_id:
-    #             neighbors.append(edge.u)
+        return
 
-    #     return neighbors
+    def _draw_edges(self, fig: go.Figure, color_field: str):
 
-    # def visualize(self, node_color: str = "chain", edge_color: str = "type"):
+        field_vals = set([
+            getattr(edge[2]["data"], color_field)
+            for edge in self.graph.edges(data=True)
+        ])
+        val_color_map = {val: i for i, val in enumerate(field_vals)}
 
-    #     fig = go.Figure()
+        for val in field_vals:
+            fig.add_trace(
+                go.Scatter3d(
+                    x=[
+                        c for edge in self.graph.edges(data=True)
+                        for c in [
+                            self.graph.nodes[edge[0]]["data"].pos[0],
+                            self.graph.nodes[edge[1]]["data"].pos[0],
+                            None
+                        ]
+                        if getattr(edge[2]["data"], color_field) == val
+                    ],
+                    y=[
+                        c for edge in self.graph.edges(data=True)
+                        for c in [
+                            self.graph.nodes[edge[0]]["data"].pos[1],
+                            self.graph.nodes[edge[1]]["data"].pos[1],
+                            None
+                        ]
+                        if getattr(edge[2]["data"], color_field) == val
+                    ],
+                    z=[
+                        c for edge in self.graph.edges(data=True)
+                        for c in [
+                            self.graph.nodes[edge[0]]["data"].pos[2],
+                            self.graph.nodes[edge[1]]["data"].pos[2],
+                            None
+                        ]
+                        if getattr(edge[2]["data"], color_field) == val
+                    ],
+                    mode="lines",
+                    line=dict(color=val_color_map[val]),
+                    name=val,
+                    hoverinfo="text",
+                    legend="legend2",
+                    opacity=0.5
+                )
+            )
 
-    #     node_vals = set(
-    #         [getattr(res, node_color) for res in self.nodes.values()]
-    #     )
-    #     node_color_scale = sample_colorscale(
-    #         "viridis", minmax_scale(range(len(node_vals)))
-    #     )
-    #     val_colors = {
-    #         val: node_color_scale[i] for i, val in enumerate(node_vals)
-    #     }
-
-    #     for val in node_vals:
-    #         fig.add_trace(
-    #             go.Scatter3d(
-    #                 x=[
-    #                     res.pos[0] for res in self.nodes.values()
-    #                     if getattr(res, node_color) == val
-    #                 ],
-    #                 y=[
-    #                     res.pos[1] for res in self.nodes.values()
-    #                     if getattr(res, node_color) == val
-    #                 ],
-    #                 z=[
-    #                     res.pos[2] for res in self.nodes.values()
-    #                     if getattr(res, node_color) == val
-    #                 ],
-    #                 mode="markers",
-    #                 marker=dict(
-    #                     symbol="circle",
-    #                     size=3,
-    #                     color=val_colors[val]
-    #                 ),
-    #                 text=[res.id for res in self.nodes.values()],
-    #                 hoverinfo="text",
-    #                 name=f"{node_color}: {val}",
-    #                 legend="legend1"
-    #             )
-    #         )
-
-    #     edge_vals = set([getattr(edge, edge_color) for edge in self.edges])
-    #     edge_colors = {val: i for i, val in enumerate(edge_vals)}
-    #     for val in edge_vals:
-    #         fig.add_trace(
-    #             go.Scatter3d(
-    #                 x=[
-    #                     c for edge in self.edges
-    #                     for c in [
-    #                         self.nodes[edge.u].pos[0],
-    #                         self.nodes[edge.v].pos[0],
-    #                         None
-    #                     ]
-    #                     if getattr(edge, edge_color) == val
-    #                 ],
-    #                 y=[
-    #                     c for edge in self.edges
-    #                     for c in [
-    #                         self.nodes[edge.u].pos[1],
-    #                         self.nodes[edge.v].pos[1],
-    #                         None
-    #                     ]
-    #                     if getattr(edge, edge_color) == val
-    #                 ],
-    #                 z=[
-    #                     c for edge in self.edges
-    #                     for c in [
-    #                         self.nodes[edge.u].pos[2],
-    #                         self.nodes[edge.v].pos[2],
-    #                         None
-    #                     ]
-    #                     if getattr(edge, edge_color) == val
-    #                 ],
-    #                 mode="lines",
-    #                 line=dict(color=edge_colors[val]),
-    #                 text=[str(edge.weight) for edge in self.edges],
-    #                 name=val,
-    #                 hoverinfo="text",
-    #                 legend="legend2",
-    #                 opacity=0.5
-    #             )
-    #         )
-
-    #     fig.show()
-
-    #     return
+        return
