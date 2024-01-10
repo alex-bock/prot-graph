@@ -5,6 +5,7 @@ import itertools
 from Bio.PDB.Structure import Structure
 from networkx import MultiGraph
 import numpy as np
+import pandas as pd
 from plotly.colors import sample_colorscale
 import plotly.graph_objects as go
 from sklearn.neighbors import kneighbors_graph
@@ -13,18 +14,18 @@ from scipy.spatial.distance import euclidean
 
 
 C_ALPHA = "CA"
-DEFAULT_NODE_RADIUS = 10.0
-DEFAULT_K = 10
 
 
 @dataclass
 class Residue:
 
-    res_id: str
+    id: str
     chain: str
     chain_i: int
     aa_id: str
-    pos: np.ndarray
+    pos_x: float
+    pos_y: float
+    pos_z: float
 
 
 @dataclass
@@ -40,16 +41,18 @@ class ProtGraph:
 
         self.pdb_id = pdb_struct.get_id()
         self.graph = MultiGraph()
-        self.add_nodes(pdb_struct)
+        self.res_df = self.add_residues(pdb_struct)
+        print(self.res_df)
+        self.edge_df = pd.DataFrame(columns=["u", "v", "type", "weight"])
 
         return
 
     @property
     def __len__(self):
 
-        return len(self.graph)
+        return len(self.res_df)
 
-    def add_nodes(self, pdb_struct: Structure):
+    def add_residues(self, pdb_struct: Structure):
 
         i = 0
         for chain in pdb_struct.get_chains():
@@ -64,96 +67,121 @@ class ProtGraph:
                 )
                 if c_alpha is None:
                     continue
+                pos = c_alpha.get_coord()
                 self.graph.add_node(
-                    i,
-                    data=Residue(
-                        res_id=chain_id + str(chain_i),
+                    chain_id + str(chain_i),
+                    **dict(
                         chain=chain_id,
                         chain_i=chain_i,
                         aa_id=res.get_resname(),
-                        pos=c_alpha.get_coord()
+                        pos_x=pos[0],
+                        pos_y=pos[1],
+                        pos_z=pos[2]
                     )
                 )
                 i += 1
 
-        print(f"Added {len(self.graph)} residue nodes")
+        print(f"Added {len(self.graph)} residues")
 
-        return
+        return pd.DataFrame.from_dict(self.graph.nodes, orient="index")
 
     def add_sequence_edges(self):
 
-        n_edges = 0
-        for (u, v) in itertools.combinations(self.graph.nodes(data=True), 2):
-            if u[1]["data"].chain == v[1]["data"].chain and abs(
-                u[1]["data"].chain_i - v[1]["data"].chain_i
+        seq_edges = []
+        for (res_u, res_v) in itertools.combinations(
+            self.graph.nodes(data=True), 2
+        ):
+            if res_u[1]["chain"] == res_v[1]["chain"] and abs(
+                res_u[1]["chain_i"] - res_v[1]["chain_i"]
                ) == 1:
-                self.graph.add_edge(
-                    u[0], v[0], data=Edge(type="seq", weight=None)
-                )
-                n_edges += 1
+                edge = dict(u=res_u[0], v=res_v[0], type="seq", weight=None)
+                self.graph.add_edge(res_u[0], res_v[0], data=edge)
+                seq_edges.append(edge)
 
-        print(f"Added {n_edges} sequence edges")
+        print(f"Added {len(seq_edges)} sequence edges")
+        self.edge_df = pd.concat(
+            [self.edge_df, pd.DataFrame(seq_edges)], ignore_index=True
+        )
 
         return
 
     def add_radius_edges(self, r: float, seq_gap: int = 0):
 
-        n_edges = 0
-        for (u, v) in itertools.combinations(self.graph.nodes(data=True), 2):
-            if u[1]["data"].chain == v[1]["data"].chain and abs(
-                u[1]["data"].chain_i - v[1]["data"].chain_i
+        radius_edges = []
+        for (res_u, res_v) in itertools.combinations(
+            self.graph.nodes(data=True), 2
+        ):
+            if res_u[1]["chain"] == res_v[1]["chain"] and abs(
+                res_u[1]["chain_i"] - res_v[1]["chain_i"]
                ) < seq_gap:
                 continue
-            elif euclidean(u[1]["data"].pos, v[1]["data"].pos) <= r:
-                self.graph.add_edge(
-                    u[0], v[0], data=Edge(type="radius", weight=None)
-                )
-                n_edges += 1
+            elif euclidean(
+                [res_u[1]["pos_x"], res_u[1]["pos_y"], res_u[1]["pos_z"]],
+                [res_v[1]["pos_x"], res_v[1]["pos_y"], res_v[1]["pos_z"]]
+            ) <= r:
+                edge = dict(u=res_u[0], v=res_v[0], type="radius", weight=None)
+                self.graph.add_edge(res_u[0], res_v[0], data=edge)
+                radius_edges.append(edge)
 
-        print(f"Added {n_edges} radius edges")
+        print(f"Added {len(radius_edges)} sequence edges")
+        self.edge_df = pd.concat(
+            [self.edge_df, pd.DataFrame(radius_edges)], ignore_index=True
+        )
 
         return
 
     def add_knn_edges(self, k: int, seq_gap: int = 0):
 
         k_adj_mat = kneighbors_graph(
-            [n[1]["data"].pos for n in self.graph.nodes(data=True)],
+            [
+                [res[1]["pos_x"], res[1]["pos_y"], res[1]["pos_z"]]
+                for res in self.graph.nodes(data=True)
+            ],
             k,
             mode="distance",
             metric="euclidean"
         )
 
-        n_edges = 0
-        for (u, v) in itertools.combinations(self.graph.nodes(data=True), 2):
-            if k_adj_mat[u[0], v[0]] > 0:
-                self.graph.add_edge(
-                    u[0], v[0], data=Edge(type="knn", weight=None)
-                )
-                n_edges += 1
+        knn_edges = []
+        for (res_u, res_v) in itertools.combinations(
+            self.graph.nodes(data=True), 2
+        ):
+            if (
+                res_u[1]["chain"] == res_v[1]["chain"] and
+                abs(res_u[1]["chain_i"] - res_v[1]["chain_i"]) < seq_gap
+            ):
+                continue
+            if (
+                k_adj_mat[res_u[0], res_v[0]] > 0 or
+                k_adj_mat[res_v[0], res_u[0]] > 0
+            ):
+                edge = dict(u=res_u[0], v=res_v[0], type="knn", weight=None)
+                self.graph.add_edge(res_u[0], res_v[0], data=edge)
+                knn_edges.append(edge)
 
-        print(f"Added {n_edges} knn edges")
+        print(f"Added {len(knn_edges)} knn edges")
+        self.edge_df = pd.concat(
+            [self.edge_df, pd.DataFrame(knn_edges)], ignore_index=True
+        )
 
         return
 
     def visualize(
-        self, color_node_by: str = "chain", color_edge_by: str = "type"
+        self, color_residue_by: str = "chain", color_edge_by: str = "type"
     ):
 
         fig = go.Figure()
 
-        self._plot_nodes(fig, color_node_by)
+        self._plot_residues(fig, color_residue_by)
         self._draw_edges(fig, color_edge_by)
 
         fig.show()
 
         return
 
-    def _plot_nodes(self, fig: go.Figure, color_field: str):
+    def _plot_residues(self, fig: go.Figure, color_field: str):
 
-        field_vals = set([
-            getattr(node[1]["data"], color_field)
-            for node in self.graph.nodes(data=True)
-        ])
+        field_vals = np.sort(self.res_df[color_field].unique())
         color_scale = sample_colorscale(
             "viridis", minmax_scale(range(len(field_vals)))
         )
@@ -164,31 +192,16 @@ class ProtGraph:
         for val in field_vals:
             fig.add_trace(
                 go.Scatter3d(
-                    x=[
-                        node[1]["data"].pos[0]
-                        for node in self.graph.nodes(data=True)
-                        if getattr(node[1]["data"], color_field) == val
-                    ],
-                    y=[
-                        node[1]["data"].pos[1]
-                        for node in self.graph.nodes(data=True)
-                        if getattr(node[1]["data"], color_field) == val
-                    ],
-                    z=[
-                        node[1]["data"].pos[2]
-                        for node in self.graph.nodes(data=True)
-                        if getattr(node[1]["data"], color_field) == val
-                    ],
+                    x=self.res_df[self.res_df[color_field] == val].pos_x,
+                    y=self.res_df[self.res_df[color_field] == val].pos_y,
+                    z=self.res_df[self.res_df[color_field] == val].pos_z,
                     mode="markers",
                     marker=dict(
                         symbol="circle",
                         size=3,
                         color=val_color_map[val]
                     ),
-                    text=[
-                        node[1]["data"].res_id
-                        for node in self.graph.nodes(data=True)
-                    ],
+                    text=self.res_df.index,
                     hoverinfo="text",
                     name=f"{color_field}: {val}",
                     legend="legend1"
@@ -199,46 +212,39 @@ class ProtGraph:
 
     def _draw_edges(self, fig: go.Figure, color_field: str):
 
-        field_vals = set([
-            getattr(edge[2]["data"], color_field)
-            for edge in self.graph.edges(data=True)
-        ])
+        field_vals = np.sort(self.edge_df[color_field].unique())
         val_color_map = {val: i for i, val in enumerate(field_vals)}
 
         for val in field_vals:
             fig.add_trace(
                 go.Scatter3d(
                     x=[
-                        c for edge in self.graph.edges(data=True)
-                        for c in [
-                            self.graph.nodes[edge[0]]["data"].pos[0],
-                            self.graph.nodes[edge[1]]["data"].pos[0],
+                        x for _, edge in self.edge_df.iterrows()
+                        for x in [
+                            self.res_df.loc[edge.u].pos_x,
+                            self.res_df.loc[edge.v].pos_x,
                             None
                         ]
-                        if getattr(edge[2]["data"], color_field) == val
                     ],
                     y=[
-                        c for edge in self.graph.edges(data=True)
-                        for c in [
-                            self.graph.nodes[edge[0]]["data"].pos[1],
-                            self.graph.nodes[edge[1]]["data"].pos[1],
+                        y for _, edge in self.edge_df.iterrows()
+                        for y in [
+                            self.res_df.loc[edge.u].pos_y,
+                            self.res_df.loc[edge.v].pos_y,
                             None
                         ]
-                        if getattr(edge[2]["data"], color_field) == val
                     ],
                     z=[
-                        c for edge in self.graph.edges(data=True)
-                        for c in [
-                            self.graph.nodes[edge[0]]["data"].pos[2],
-                            self.graph.nodes[edge[1]]["data"].pos[2],
+                        z for _, edge in self.edge_df.iterrows()
+                        for z in [
+                            self.res_df.loc[edge.u].pos_z,
+                            self.res_df.loc[edge.v].pos_z,
                             None
                         ]
-                        if getattr(edge[2]["data"], color_field) == val
                     ],
                     mode="lines",
                     line=dict(color=val_color_map[val]),
                     name=val,
-                    hoverinfo="text",
                     legend="legend2",
                     opacity=0.5
                 )
