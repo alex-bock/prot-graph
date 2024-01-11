@@ -204,12 +204,17 @@ class ProtGraph:
 
         return
 
-    def visualize(self, color_residue_by: str = "chain"):
+    def visualize(
+        self, color_residue_by: str = "chain", draw_rays: bool = False
+    ):
 
         fig = go.Figure()
 
         self._plot_residues(fig, color_residue_by)
         self._draw_edges(fig)
+
+        if draw_rays:
+            self._draw_rays(fig)
 
         fig.show()
 
@@ -282,5 +287,33 @@ class ProtGraph:
                     opacity=0.5
                 )
             )
+
+        return
+
+    def _draw_rays(self, fig: go.Figure):
+
+        xs = []
+        ys = []
+        zs = []
+        for _, res_atom_df in self.atom_df.groupby("res_id"):
+            ca = res_atom_df[res_atom_df.atom_id == C_ALPHA].iloc[0]
+            res_atom_df["ca_dist"] = res_atom_df.apply(
+                lambda atom: euclidean(
+                    [atom.pos_x, atom.pos_y, atom.pos_z],
+                    [ca.pos_x, ca.pos_y, ca.pos_z]
+                ),
+                axis=1
+            )
+            print(res_atom_df.ca_dist)
+            max_dist_atom = res_atom_df.loc[res_atom_df.ca_dist.idxmax()]
+            xs.extend([ca.pos_x, max_dist_atom.pos_x, None])
+            ys.extend([ca.pos_y, max_dist_atom.pos_y, None])
+            zs.extend([ca.pos_z, max_dist_atom.pos_z, None])
+        
+        fig.add_trace(
+            go.Scatter3d(
+                x=xs, y=ys, z=zs, mode="lines", line=dict(color="black")
+            )
+        )
 
         return
