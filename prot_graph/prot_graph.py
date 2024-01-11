@@ -230,19 +230,19 @@ class ProtGraph:
             val: color_scale[i] for i, val in enumerate(field_vals)
         }
 
-        for val in field_vals:
+        for val, val_res_df in self.res_df.groupby(color_field):
             fig.add_trace(
                 go.Scatter3d(
-                    x=self.res_df[self.res_df[color_field] == val].pos_x,
-                    y=self.res_df[self.res_df[color_field] == val].pos_y,
-                    z=self.res_df[self.res_df[color_field] == val].pos_z,
+                    x=val_res_df.pos_x,
+                    y=val_res_df.pos_y,
+                    z=val_res_df.pos_z,
                     mode="markers",
                     marker=dict(
                         symbol="circle",
                         size=3,
                         color=val_color_map[val]
                     ),
-                    text=self.res_df.index,
+                    text=val_res_df.index,
                     hoverinfo="text",
                     name=f"{color_field}: {val}",
                     legend="legend1"
@@ -253,12 +253,11 @@ class ProtGraph:
 
     def _draw_edges(self, fig: go.Figure):
 
-        for edge_type in self.edge_df.type.unique():
-            edges = self.edge_df[self.edge_df.type == edge_type]
+        for edge_type, edge_type_df in self.edge_df.groupby("type"):
             fig.add_trace(
                 go.Scatter3d(
                     x=[
-                        x for _, edge in edges.iterrows()
+                        x for _, edge in edge_type_df.iterrows()
                         for x in [
                             self.res_df.loc[edge.u].pos_x,
                             self.res_df.loc[edge.v].pos_x,
@@ -266,7 +265,7 @@ class ProtGraph:
                         ]
                     ],
                     y=[
-                        y for _, edge in edges.iterrows()
+                        y for _, edge in edge_type_df.iterrows()
                         for y in [
                             self.res_df.loc[edge.u].pos_y,
                             self.res_df.loc[edge.v].pos_y,
@@ -274,7 +273,7 @@ class ProtGraph:
                         ]
                     ],
                     z=[
-                        z for _, edge in edges.iterrows()
+                        z for _, edge in edge_type_df.iterrows()
                         for z in [
                             self.res_df.loc[edge.u].pos_z,
                             self.res_df.loc[edge.v].pos_z,
@@ -304,7 +303,6 @@ class ProtGraph:
                 ),
                 axis=1
             )
-            print(res_atom_df.ca_dist)
             max_dist_atom = res_atom_df.loc[res_atom_df.ca_dist.idxmax()]
             xs.extend([ca.pos_x, max_dist_atom.pos_x, None])
             ys.extend([ca.pos_y, max_dist_atom.pos_y, None])
