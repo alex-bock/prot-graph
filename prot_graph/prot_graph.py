@@ -8,9 +8,9 @@ import numpy as np
 import pandas as pd
 from plotly.colors import sample_colorscale
 import plotly.graph_objects as go
+from scipy.spatial.distance import euclidean
 from sklearn.neighbors import kneighbors_graph
 from sklearn.preprocessing import minmax_scale
-from scipy.spatial.distance import euclidean
 
 
 C_ALPHA = "CA"
@@ -41,8 +41,7 @@ class ProtGraph:
 
         self.pdb_id = pdb_struct.get_id()
         self.graph = MultiGraph()
-        self.res_df = self.add_residues(pdb_struct)
-        print(self.res_df)
+        self.res_df, self.atom_df = self.add_residues(pdb_struct)
         self.edge_df = pd.DataFrame(columns=["u", "v", "type", "weight"])
 
         return
@@ -54,22 +53,35 @@ class ProtGraph:
 
     def add_residues(self, pdb_struct: Structure):
 
-        i = 0
+        atoms = []
         for chain in pdb_struct.get_chains():
             chain_id = chain.get_id().capitalize()
             for chain_i, res in enumerate(chain.get_residues()):
-                c_alpha = next(
-                    (
-                        atom for atom in res.get_atoms()
-                        if atom.get_name() == C_ALPHA
-                    ),
-                    None
-                )
+                res_id = chain_id + str(chain_i)
+                c_alpha = None
+                res_atoms = []
+                for atom in res.get_atoms():
+                    atom_id = atom.get_name()
+                    if atom_id == C_ALPHA and c_alpha is None:
+                        c_alpha = atom
+                    pos = atom.get_coord()
+                    res_atoms.append(
+                        dict(
+                            id=f"{res_id}_{atom_id}",
+                            atom_id=atom_id,
+                            res_id=res_id,
+                            pos_x=pos[0],
+                            pos_y=pos[1],
+                            pos_z=pos[2]
+                        )
+                    )
                 if c_alpha is None:
                     continue
+                else:
+                    atoms.extend(res_atoms)
                 pos = c_alpha.get_coord()
                 self.graph.add_node(
-                    chain_id + str(chain_i),
+                    res_id,
                     **dict(
                         chain=chain_id,
                         chain_i=chain_i,
@@ -79,11 +91,13 @@ class ProtGraph:
                         pos_z=pos[2]
                     )
                 )
-                i += 1
 
         print(f"Added {len(self.graph)} residues")
 
-        return pd.DataFrame.from_dict(self.graph.nodes, orient="index")
+        return (
+            pd.DataFrame.from_dict(self.graph.nodes, orient="index"),
+            pd.DataFrame(atoms).set_index("id", inplace=False)
+        )
 
     def add_sequence_edges(self):
 
@@ -164,6 +178,27 @@ class ProtGraph:
             [self.edge_df, pd.DataFrame(knn_edges)], ignore_index=True
         )
 
+        return
+
+    def add_disulfide_bridges(self, threshold: float = 2.2):
+
+        disulfide_bridges = []
+        for (res_u, res_v) in itertools.combinations(
+            self.graph.nodes(data=True), 2
+        ):
+            if res_u[1]["aa_id"] == "CYS" and res_v[1]["aa_id"] == "CYS":
+                s_u = self.atom_df[(self.atom_df.res_id == res_u[0]) & (self.atom_df.atom_id == "SG")].iloc[0]
+                s_v = self.atom_df[(self.atom_df.res_id == res_v[0]) & (self.atom_df.atom_id == "SG")].iloc[0]
+                if euclidean([s_u.pos_x, s_u.pos_y, s_u.pos_z], [s_v.pos_x, s_v.pos_y, s_v.pos_z]) <= threshold:
+                    edge = dict(u=res_u[0], v=res_v[0], type="disulfide", weight=None)
+                    self.graph.add_edge(res_u[0], res_v[0], data=edge)
+                    disulfide_bridges.append(edge)
+
+        print(f"Added {len(disulfide_bridges)} disulfide bridges")
+        self.edge_df = pd.concat(
+            [self.edge_df, pd.DataFrame(disulfide_bridges)], ignore_index=True
+        )
+        
         return
 
     def visualize(
