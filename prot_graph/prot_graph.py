@@ -1,6 +1,6 @@
 
 from dataclasses import dataclass
-import itertools
+from itertools import combinations
 
 from Bio.PDB.Structure import Structure
 from networkx import MultiGraph
@@ -102,9 +102,7 @@ class ProtGraph:
     def add_sequence_edges(self):
 
         seq_edges = []
-        for (res_u, res_v) in itertools.combinations(
-            self.graph.nodes(data=True), 2
-        ):
+        for (res_u, res_v) in combinations(self.graph.nodes(data=True), 2):
             if res_u[1]["chain"] == res_v[1]["chain"] and abs(
                 res_u[1]["chain_i"] - res_v[1]["chain_i"]
                ) == 1:
@@ -122,9 +120,7 @@ class ProtGraph:
     def add_radius_edges(self, r: float, seq_gap: int = 0):
 
         radius_edges = []
-        for (res_u, res_v) in itertools.combinations(
-            self.graph.nodes(data=True), 2
-        ):
+        for (res_u, res_v) in combinations(self.graph.nodes(data=True), 2):
             if res_u[1]["chain"] == res_v[1]["chain"] and abs(
                 res_u[1]["chain_i"] - res_v[1]["chain_i"]
                ) < seq_gap:
@@ -157,9 +153,7 @@ class ProtGraph:
         )
 
         knn_edges = []
-        for (res_u, res_v) in itertools.combinations(
-            self.graph.nodes(data=True), 2
-        ):
+        for (res_u, res_v) in combinations(self.graph.nodes(data=True), 2):
             if (
                 res_u[1]["chain"] == res_v[1]["chain"] and
                 abs(res_u[1]["chain_i"] - res_v[1]["chain_i"]) < seq_gap
@@ -183,14 +177,23 @@ class ProtGraph:
     def add_disulfide_bridges(self, threshold: float = 2.2):
 
         disulfide_bridges = []
-        for (res_u, res_v) in itertools.combinations(
-            self.graph.nodes(data=True), 2
-        ):
+        for (res_u, res_v) in combinations(self.graph.nodes(data=True), 2):
             if res_u[1]["aa_id"] == "CYS" and res_v[1]["aa_id"] == "CYS":
-                s_u = self.atom_df[(self.atom_df.res_id == res_u[0]) & (self.atom_df.atom_id == "SG")].iloc[0]
-                s_v = self.atom_df[(self.atom_df.res_id == res_v[0]) & (self.atom_df.atom_id == "SG")].iloc[0]
-                if euclidean([s_u.pos_x, s_u.pos_y, s_u.pos_z], [s_v.pos_x, s_v.pos_y, s_v.pos_z]) <= threshold:
-                    edge = dict(u=res_u[0], v=res_v[0], type="disulfide", weight=None)
+                s_u = self.atom_df[
+                    (self.atom_df.res_id == res_u[0]) &
+                    (self.atom_df.atom_id == "SG")
+                ].iloc[0]
+                s_v = self.atom_df[
+                    (self.atom_df.res_id == res_v[0]) &
+                    (self.atom_df.atom_id == "SG")
+                ].iloc[0]
+                if euclidean(
+                    [s_u.pos_x, s_u.pos_y, s_u.pos_z],
+                    [s_v.pos_x, s_v.pos_y, s_v.pos_z]
+                ) <= threshold:
+                    edge = dict(
+                        u=res_u[0], v=res_v[0], type="disulfide", weight=None
+                    )
                     self.graph.add_edge(res_u[0], res_v[0], data=edge)
                     disulfide_bridges.append(edge)
 
@@ -198,17 +201,15 @@ class ProtGraph:
         self.edge_df = pd.concat(
             [self.edge_df, pd.DataFrame(disulfide_bridges)], ignore_index=True
         )
-        
+
         return
 
-    def visualize(
-        self, color_residue_by: str = "chain", color_edge_by: str = "type"
-    ):
+    def visualize(self, color_residue_by: str = "chain"):
 
         fig = go.Figure()
 
         self._plot_residues(fig, color_residue_by)
-        self._draw_edges(fig, color_edge_by)
+        self._draw_edges(fig)
 
         fig.show()
 
@@ -245,16 +246,14 @@ class ProtGraph:
 
         return
 
-    def _draw_edges(self, fig: go.Figure, color_field: str):
+    def _draw_edges(self, fig: go.Figure):
 
-        field_vals = np.sort(self.edge_df[color_field].unique())
-        val_color_map = {val: i for i, val in enumerate(field_vals)}
-
-        for val in field_vals:
+        for edge_type in self.edge_df.type.unique():
+            edges = self.edge_df[self.edge_df.type == edge_type]
             fig.add_trace(
                 go.Scatter3d(
                     x=[
-                        x for _, edge in self.edge_df.iterrows()
+                        x for _, edge in edges.iterrows()
                         for x in [
                             self.res_df.loc[edge.u].pos_x,
                             self.res_df.loc[edge.v].pos_x,
@@ -262,7 +261,7 @@ class ProtGraph:
                         ]
                     ],
                     y=[
-                        y for _, edge in self.edge_df.iterrows()
+                        y for _, edge in edges.iterrows()
                         for y in [
                             self.res_df.loc[edge.u].pos_y,
                             self.res_df.loc[edge.v].pos_y,
@@ -270,7 +269,7 @@ class ProtGraph:
                         ]
                     ],
                     z=[
-                        z for _, edge in self.edge_df.iterrows()
+                        z for _, edge in edges.iterrows()
                         for z in [
                             self.res_df.loc[edge.u].pos_z,
                             self.res_df.loc[edge.v].pos_z,
@@ -278,8 +277,7 @@ class ProtGraph:
                         ]
                     ],
                     mode="lines",
-                    line=dict(color=val_color_map[val]),
-                    name=val,
+                    name=edge_type,
                     legend="legend2",
                     opacity=0.5
                 )
