@@ -1,6 +1,5 @@
 
 from dataclasses import dataclass
-from itertools import combinations, product
 
 from Bio.PDB.Structure import Structure
 from networkx import MultiGraph
@@ -9,7 +8,6 @@ import pandas as pd
 from plotly.colors import sample_colorscale
 import plotly.graph_objects as go
 from scipy.spatial.distance import euclidean, squareform, pdist
-from sklearn.neighbors import kneighbors_graph
 from sklearn.preprocessing import minmax_scale
 
 
@@ -101,8 +99,10 @@ class ProtGraph:
             pd.DataFrame.from_dict(self.graph.nodes, orient="index"),
             pd.DataFrame(atoms).set_index("id", inplace=False)
         )
-    
-    def is_adjacent(self, res_u: pd.Series, res_v: pd.Series, seq_gap: int = 1):
+
+    def is_adjacent(
+        self, res_u: pd.Series, res_v: pd.Series, seq_gap: int = 1
+    ):
 
         return (
             res_u.chain == res_v.chain and res_u.chain_i != res_v.chain_i and
@@ -151,7 +151,9 @@ class ProtGraph:
                 hbond_atom_df[["pos_x", "pos_y", "pos_z"]], metric="euclidean"
             )
         )
-        prox_hbond_atom_is = np.where(np.triu(hbond_atom_dist_mat <= threshold))
+        prox_hbond_atom_is = np.where(
+            np.triu(hbond_atom_dist_mat <= threshold)
+        )
 
         hbond_res_us = self.res_df.loc[
             hbond_atom_df.iloc[prox_hbond_atom_is[0]].res_id.values
@@ -313,7 +315,7 @@ class ProtGraph:
             xs.extend([ca.pos_x, max_dist_atom.pos_x, None])
             ys.extend([ca.pos_y, max_dist_atom.pos_y, None])
             zs.extend([ca.pos_z, max_dist_atom.pos_z, None])
-        
+
         fig.add_trace(
             go.Scatter3d(
                 x=xs,
