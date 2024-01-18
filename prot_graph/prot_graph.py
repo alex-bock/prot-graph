@@ -1,6 +1,6 @@
 
 from dataclasses import dataclass
-from itertools import combinations
+from itertools import combinations, product
 
 from Bio.PDB.Structure import Structure
 from networkx import MultiGraph
@@ -8,12 +8,15 @@ import numpy as np
 import pandas as pd
 from plotly.colors import sample_colorscale
 import plotly.graph_objects as go
-from scipy.spatial.distance import euclidean
+from scipy.spatial.distance import euclidean, squareform, pdist
 from sklearn.neighbors import kneighbors_graph
 from sklearn.preprocessing import minmax_scale
 
 
 C_ALPHA = "CA"
+HBOND_ATOMS = [
+    "ND", "NE", "NH", "NZ", "OD1", "OD2", "OE", "OG", "OH", "SD", "N", "O"
+]
 
 
 @dataclass
@@ -98,108 +101,113 @@ class ProtGraph:
             pd.DataFrame.from_dict(self.graph.nodes, orient="index"),
             pd.DataFrame(atoms).set_index("id", inplace=False)
         )
+    
+    def is_adjacent(self, res_u: pd.Series, res_v: pd.Series, seq_gap: int = 1):
 
-    def add_sequence_edges(self):
-
-        seq_edges = []
-        for (res_u, res_v) in combinations(self.graph.nodes(data=True), 2):
-            if res_u[1]["chain"] == res_v[1]["chain"] and abs(
-                res_u[1]["chain_i"] - res_v[1]["chain_i"]
-               ) == 1:
-                edge = dict(u=res_u[0], v=res_v[0], type="seq", weight=None)
-                self.graph.add_edge(res_u[0], res_v[0], data=edge)
-                seq_edges.append(edge)
-
-        print(f"Added {len(seq_edges)} sequence edges")
-        self.edge_df = pd.concat(
-            [self.edge_df, pd.DataFrame(seq_edges)], ignore_index=True
+        return (
+            res_u.chain == res_v.chain and res_u.chain_i != res_v.chain_i and
+            abs(res_u.chain_i - res_v.chain_i) <= seq_gap
         )
 
-        return
+    def add_radius_edges(self, r: float, seq_gap: int = 1, anchor=C_ALPHA):
 
-    def add_radius_edges(self, r: float, seq_gap: int = 0):
+        if anchor == C_ALPHA:
+            atom_df = self.atom_df[self.atom_df.atom_id == C_ALPHA]
+        elif anchor == "any":
+            atom_df = self.atom_df
+        else:
+            raise NotImplementedError
+
+        dist_mat = squareform(
+            pdist(atom_df[["pos_x", "pos_y", "pos_z"]], metric="euclidean")
+        )
+        prox_is = np.where(np.triu(dist_mat <= r))
+
+        res_us = self.res_df.loc[atom_df.iloc[prox_is[0]].res_id.values]
+        res_vs = self.res_df.loc[atom_df.iloc[prox_is[1]].res_id.values]
+        res_pairs = zip(res_us.iterrows(), res_vs.iterrows())
 
         radius_edges = []
-        for (res_u, res_v) in combinations(self.graph.nodes(data=True), 2):
-            if res_u[1]["chain"] == res_v[1]["chain"] and abs(
-                res_u[1]["chain_i"] - res_v[1]["chain_i"]
-               ) < seq_gap:
+        for ((u, res_u), (v, res_v)) in res_pairs:
+            if u == v or self.is_adjacent(res_u, res_v, seq_gap=seq_gap):
                 continue
-            elif euclidean(
-                [res_u[1]["pos_x"], res_u[1]["pos_y"], res_u[1]["pos_z"]],
-                [res_v[1]["pos_x"], res_v[1]["pos_y"], res_v[1]["pos_z"]]
-            ) <= r:
-                edge = dict(u=res_u[0], v=res_v[0], type="radius", weight=None)
-                self.graph.add_edge(res_u[0], res_v[0], data=edge)
-                radius_edges.append(edge)
+            edge = dict(u=u, v=v, type="radius", weight=None)
+            self.graph.add_edge(u, v, data=edge)
+            radius_edges.append(edge)
 
-        print(f"Added {len(radius_edges)} sequence edges")
+        print(f"Added {len(radius_edges)} radius edges")
         self.edge_df = pd.concat(
             [self.edge_df, pd.DataFrame(radius_edges)], ignore_index=True
         )
 
         return
 
-    def add_knn_edges(self, k: int, seq_gap: int = 0):
+    def add_hydrogen_bonds(self, threshold: float = 3.5, seq_gap: int = 2):
 
-        k_adj_mat = kneighbors_graph(
-            [
-                [res[1]["pos_x"], res[1]["pos_y"], res[1]["pos_z"]]
-                for res in self.graph.nodes(data=True)
-            ],
-            k,
-            mode="distance",
-            metric="euclidean"
+        hbond_atom_df = self.atom_df[self.atom_df.atom_id.isin(HBOND_ATOMS)]
+
+        hbond_atom_dist_mat = squareform(
+            pdist(
+                hbond_atom_df[["pos_x", "pos_y", "pos_z"]], metric="euclidean"
+            )
         )
+        prox_hbond_atom_is = np.where(np.triu(hbond_atom_dist_mat <= threshold))
 
-        knn_edges = []
-        for (res_u, res_v) in combinations(self.graph.nodes(data=True), 2):
-            if (
-                res_u[1]["chain"] == res_v[1]["chain"] and
-                abs(res_u[1]["chain_i"] - res_v[1]["chain_i"]) < seq_gap
-            ):
+        hbond_res_us = self.res_df.loc[
+            hbond_atom_df.iloc[prox_hbond_atom_is[0]].res_id.values
+        ]
+        hbond_res_vs = self.res_df.loc[
+            hbond_atom_df.iloc[prox_hbond_atom_is[1]].res_id.values
+        ]
+        hbond_res_pairs = zip(hbond_res_us.iterrows(), hbond_res_vs.iterrows())
+
+        hbonds = []
+        for ((u, res_u), (v, res_v)) in hbond_res_pairs:
+            if u == v or self.is_adjacent(res_u, res_v, seq_gap=seq_gap):
                 continue
-            if (
-                k_adj_mat[res_u[0], res_v[0]] > 0 or
-                k_adj_mat[res_v[0], res_u[0]] > 0
-            ):
-                edge = dict(u=res_u[0], v=res_v[0], type="knn", weight=None)
-                self.graph.add_edge(res_u[0], res_v[0], data=edge)
-                knn_edges.append(edge)
+            edge = dict(u=u, v=v, type="hbond", weight=None)
+            self.graph.add_edge(u, v, data=edge)
+            hbonds.append(edge)
 
-        print(f"Added {len(knn_edges)} knn edges")
+        print(f"Added {len(hbonds)} hydrogen bonds")
         self.edge_df = pd.concat(
-            [self.edge_df, pd.DataFrame(knn_edges)], ignore_index=True
+            [self.edge_df, pd.DataFrame(hbonds)], ignore_index=True
         )
 
         return
 
     def add_disulfide_bridges(self, threshold: float = 2.2):
 
-        disulfide_bridges = []
-        for (res_u, res_v) in combinations(self.graph.nodes(data=True), 2):
-            if res_u[1]["aa_id"] == "CYS" and res_v[1]["aa_id"] == "CYS":
-                s_u = self.atom_df[
-                    (self.atom_df.res_id == res_u[0]) &
-                    (self.atom_df.atom_id == "SG")
-                ].iloc[0]
-                s_v = self.atom_df[
-                    (self.atom_df.res_id == res_v[0]) &
-                    (self.atom_df.atom_id == "SG")
-                ].iloc[0]
-                if euclidean(
-                    [s_u.pos_x, s_u.pos_y, s_u.pos_z],
-                    [s_v.pos_x, s_v.pos_y, s_v.pos_z]
-                ) <= threshold:
-                    edge = dict(
-                        u=res_u[0], v=res_v[0], type="disulfide", weight=None
-                    )
-                    self.graph.add_edge(res_u[0], res_v[0], data=edge)
-                    disulfide_bridges.append(edge)
+        cys_res_df = self.res_df[self.res_df.aa_id == "CYS"]
+        cys_atom_df = self.atom_df[self.atom_df.res_id.isin(cys_res_df.index)]
+        sulf_df = cys_atom_df[cys_atom_df.atom_id == "SG"]
 
-        print(f"Added {len(disulfide_bridges)} disulfide bridges")
+        sulf_dist_mat = squareform(
+            pdist(sulf_df[["pos_x", "pos_y", "pos_z"]], metric="euclidean")
+        )
+        prox_sulf_is = np.where(np.triu(sulf_dist_mat <= threshold))
+
+        disulf_res_us = cys_res_df.loc[
+            sulf_df.iloc[prox_sulf_is[0]].res_id.values
+        ]
+        disulf_res_vs = cys_res_df.loc[
+            sulf_df.iloc[prox_sulf_is[1]].res_id.values
+        ]
+        disulf_res_pairs = zip(
+            disulf_res_us.iterrows(), disulf_res_vs.iterrows()
+        )
+
+        disulf_bridges = []
+        for ((u, res_u), (v, res_v)) in disulf_res_pairs:
+            if u == v or self.is_adjacent(res_u, res_v):
+                continue
+            edge = dict(u=u, v=v, type="disulf", weight=None)
+            self.graph.add_edge(u, v, data=edge)
+            disulf_bridges.append(edge)
+
+        print(f"Added {len(disulf_bridges)} disulfide bridges")
         self.edge_df = pd.concat(
-            [self.edge_df, pd.DataFrame(disulfide_bridges)], ignore_index=True
+            [self.edge_df, pd.DataFrame(disulf_bridges)], ignore_index=True
         )
 
         return
@@ -244,8 +252,7 @@ class ProtGraph:
                     ),
                     text=val_res_df.index,
                     hoverinfo="text",
-                    name=f"{color_field}: {val}",
-                    legend="legend1"
+                    name=f"{color_field}: {val}"
                 )
             )
 
@@ -282,7 +289,6 @@ class ProtGraph:
                     ],
                     mode="lines",
                     name=edge_type,
-                    legend="legend2",
                     opacity=0.5
                 )
             )
@@ -310,7 +316,12 @@ class ProtGraph:
         
         fig.add_trace(
             go.Scatter3d(
-                x=xs, y=ys, z=zs, mode="lines", line=dict(color="black")
+                x=xs,
+                y=ys,
+                z=zs,
+                mode="lines",
+                line=dict(color="black"),
+                name="rays"
             )
         )
 
