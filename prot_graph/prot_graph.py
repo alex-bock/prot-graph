@@ -2,7 +2,7 @@
 from dataclasses import dataclass
 
 from Bio.PDB.Structure import Structure
-from networkx import MultiGraph
+import networkx as nx
 import numpy as np
 import pandas as pd
 from plotly.colors import sample_colorscale
@@ -41,7 +41,7 @@ class ProtGraph:
     def __init__(self, pdb_struct: Structure):
 
         self.pdb_id = pdb_struct.get_id()
-        self.graph = MultiGraph()
+        self.graph = nx.MultiGraph()
         self.res_df, self.atom_df = self.add_residues(pdb_struct)
         self.edge_df = pd.DataFrame(columns=["u", "v", "type", "weight"])
 
@@ -211,6 +211,29 @@ class ProtGraph:
         self.edge_df = pd.concat(
             [self.edge_df, pd.DataFrame(disulf_bridges)], ignore_index=True
         )
+
+        return
+    
+    def find_louvain_communities(self):
+
+        self.res_df["louvain"] = -1
+        if nx.is_connected(self.graph):
+            communities = nx.community.louvain_communities(self.graph)
+        else:
+            subgraph = nx.subgraph(
+                self.graph,
+                sorted(
+                    nx.connected_components(self.graph),
+                    key=len,
+                    reverse=True
+                )[0]
+            )
+            communities = nx.community.louvain_communities(subgraph)
+
+        for i, res_ids in enumerate(communities):
+            self.res_df.loc[self.res_df.index.isin(res_ids), "louvain"] = i
+        
+        print(self.res_df)
 
         return
 
