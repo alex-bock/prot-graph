@@ -13,8 +13,10 @@ from sklearn.preprocessing import minmax_scale
 
 C_ALPHA = "CA"
 HBOND_ATOMS = [
-    "ND", "NE", "NH", "NZ", "OD1", "OD2", "OE", "OG", "OH", "SD", "N", "O"
+    "N", "ND", "NE", "NH", "NZ", "O", "OD1", "OD2", "OE", "OG", "OH"
 ]
+HP_RES = ["ALA", "ILU", "LEU", "MET", "PHE", "PRO", "TRP", "TYR", "VAL"]
+BACKBONE_ATOMS = ["C", C_ALPHA, "N", "O"]
 
 
 @dataclass
@@ -23,7 +25,7 @@ class Residue:
     id: str
     chain: str
     chain_i: int
-    aa_id: str
+    res_type: str
     pos_x: float
     pos_y: float
     pos_z: float
@@ -62,14 +64,14 @@ class ProtGraph:
                 c_alpha = None
                 res_atoms = list()
                 for atom in res.get_atoms():
-                    atom_id = atom.get_name()
-                    if atom_id == C_ALPHA and c_alpha is None:
+                    atom_type = atom.get_name()
+                    if atom_type == C_ALPHA and c_alpha is None:
                         c_alpha = atom
                     pos = atom.get_coord()
                     res_atoms.append(
                         dict(
-                            id=f"{res_id}_{atom_id}",
-                            atom_id=atom_id,
+                            id=f"{res_id}_{atom_type}",
+                            atom_type=atom_type,
                             res_id=res_id,
                             pos_x=pos[0],
                             pos_y=pos[1],
@@ -86,7 +88,7 @@ class ProtGraph:
                     **dict(
                         chain=chain_id,
                         chain_i=chain_i,
-                        aa_id=res.get_resname(),
+                        res_type=res.get_resname(),
                         pos_x=pos[0],
                         pos_y=pos[1],
                         pos_z=pos[2]
@@ -121,7 +123,6 @@ class ProtGraph:
         if symmetric:
             dist_mask = np.triu(dist_mask)
         prox_i_pairs = set(list(zip(*np.where(dist_mask))))
-        import pdb; pdb.set_trace()
 
         res_us = self.res_df.loc[atom_df.iloc[[x[0] for x in prox_i_pairs]].res_id.values]
         res_vs = self.res_df.loc[atom_df.iloc[[x[1] for x in prox_i_pairs]].res_id.values]
@@ -148,7 +149,7 @@ class ProtGraph:
 
     def add_radius_edges(self, r: float, seq_gap: int = 1):
 
-        atom_df = self.atom_df[self.atom_df.atom_id == C_ALPHA]
+        atom_df = self.atom_df[self.atom_df.atom_type == C_ALPHA]
         res_pairs = self.get_residue_interactions(atom_df, r)
 
         radius_edges = list()
@@ -168,7 +169,7 @@ class ProtGraph:
 
     def add_hydrogen_bonds(self, threshold: float = 3.5, seq_gap: int = 3):
 
-        atom_df = self.atom_df[self.atom_df.atom_id.isin(HBOND_ATOMS)]
+        atom_df = self.atom_df[self.atom_df.atom_type.isin(HBOND_ATOMS)]
         res_pairs = self.get_residue_interactions(atom_df, threshold)
 
         hbonds = list()
@@ -185,12 +186,38 @@ class ProtGraph:
         )
 
         return
+    
+    def add_hydrophobic_interactions(
+        self, threshold: float = 5.0, seq_gap: int = 2
+    ):
+        
+        res_df = self.res_df[self.res_df.res_type.isin(HP_RES)]
+        atom_df = self.atom_df[
+            self.atom_df.res_id.isin(res_df.index) &
+            ~self.atom_df.atom_type.isin(BACKBONE_ATOMS)
+        ]
+        res_pairs = self.get_residue_interactions(atom_df, threshold)
+
+        hpis = list()
+        for ((u, res_u), (v, res_v)) in res_pairs:
+            if u == v or self.is_adjacent(res_u, res_v, seq_gap=seq_gap):
+                continue
+            edge = dict(u=u, v=v, type="hp", weight=None)
+            self.graph.add_edge(u, v, data=edge)
+            hpis.append(edge)
+
+        print(f"Added {len(hpis)} hydrophobic interactions")
+        self.edge_df = pd.concat(
+            [self.edge_df, pd.DataFrame(hpis)], ignore_index=True
+        )
+
+        return
 
     def add_disulfide_bridges(self, threshold: float = 2.2):
 
-        cys_res_df = self.res_df[self.res_df.aa_id == "CYS"]
+        cys_res_df = self.res_df[self.res_df.res_type == "CYS"]
         cys_atom_df = self.atom_df[self.atom_df.res_id.isin(cys_res_df.index)]
-        sulf_df = cys_atom_df[cys_atom_df.atom_id == "SG"]
+        sulf_df = cys_atom_df[cys_atom_df.atom_type == "SG"]
         res_pairs = self.get_residue_interactions(sulf_df, threshold)
 
         disulf_bridges = list()
@@ -232,16 +259,14 @@ class ProtGraph:
         return
 
     def visualize(
-        self, color_residue_by: str = "chain", draw_rays: bool = False
+        self, color_residue_by: str = "chain", hide_residues: bool = False
     ):
 
         fig = go.Figure()
 
-        self._plot_residues(fig, color_residue_by)
+        if not hide_residues:
+            self._plot_residues(fig, color_residue_by)
         self._draw_edges(fig)
-
-        if draw_rays:
-            self._draw_rays(fig)
 
         fig.show()
 
@@ -311,37 +336,5 @@ class ProtGraph:
                     opacity=0.5
                 )
             )
-
-        return
-
-    def _draw_rays(self, fig: go.Figure):
-
-        xs = list()
-        ys = list()
-        zs = list()
-        for _, res_atom_df in self.atom_df.groupby("res_id"):
-            ca = res_atom_df[res_atom_df.atom_id == C_ALPHA].iloc[0]
-            res_atom_df["ca_dist"] = res_atom_df.apply(
-                lambda atom: euclidean(
-                    [atom.pos_x, atom.pos_y, atom.pos_z],
-                    [ca.pos_x, ca.pos_y, ca.pos_z]
-                ),
-                axis=1
-            )
-            max_dist_atom = res_atom_df.loc[res_atom_df.ca_dist.idxmax()]
-            xs.extend([ca.pos_x, max_dist_atom.pos_x, None])
-            ys.extend([ca.pos_y, max_dist_atom.pos_y, None])
-            zs.extend([ca.pos_z, max_dist_atom.pos_z, None])
-
-        fig.add_trace(
-            go.Scatter3d(
-                x=xs,
-                y=ys,
-                z=zs,
-                mode="lines",
-                line=dict(color="black"),
-                name="rays"
-            )
-        )
 
         return
