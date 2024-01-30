@@ -109,6 +109,25 @@ class ProtGraph:
             abs(res_u.chain_i - res_v.chain_i) <= seq_gap
         )
     
+    def get_residue_interactions(
+        self, atom_df: pd.DataFrame, min_dist: int,
+        dist_metric: str = "euclidean", symmetric: bool = True
+    ) -> None:
+        
+        dist_mat = squareform(
+            pdist(atom_df[["pos_x", "pos_y", "pos_z"]], metric=dist_metric)
+        )
+        dist_mask = dist_mat <= min_dist
+        if symmetric:
+            dist_mask = np.triu(dist_mask)
+        prox_i_pairs = set(list(zip(*np.where(dist_mask))))
+        import pdb; pdb.set_trace()
+
+        res_us = self.res_df.loc[atom_df.iloc[[x[0] for x in prox_i_pairs]].res_id.values]
+        res_vs = self.res_df.loc[atom_df.iloc[[x[1] for x in prox_i_pairs]].res_id.values]
+        
+        return zip(res_us.iterrows(), res_vs.iterrows())
+    
     def add_sequence_edges(self):
 
         seq_edges = list()
@@ -127,23 +146,10 @@ class ProtGraph:
 
         return
 
-    def add_radius_edges(self, r: float, seq_gap: int = 1, anchor=C_ALPHA):
+    def add_radius_edges(self, r: float, seq_gap: int = 1):
 
-        if anchor == C_ALPHA:
-            atom_df = self.atom_df[self.atom_df.atom_id == C_ALPHA]
-        elif anchor == "any":
-            atom_df = self.atom_df
-        else:
-            raise NotImplementedError
-
-        dist_mat = squareform(
-            pdist(atom_df[["pos_x", "pos_y", "pos_z"]], metric="euclidean")
-        )
-        prox_is = np.where(dist_mat <= r)
-
-        res_us = self.res_df.loc[atom_df.iloc[prox_is[0]].res_id.values]
-        res_vs = self.res_df.loc[atom_df.iloc[prox_is[1]].res_id.values]
-        res_pairs = zip(res_us.iterrows(), res_vs.iterrows())
+        atom_df = self.atom_df[self.atom_df.atom_id == C_ALPHA]
+        res_pairs = self.get_residue_interactions(atom_df, r)
 
         radius_edges = list()
         for ((u, res_u), (v, res_v)) in res_pairs:
@@ -162,33 +168,12 @@ class ProtGraph:
 
     def add_hydrogen_bonds(self, threshold: float = 3.5, seq_gap: int = 3):
 
-        hbond_atom_df = self.atom_df[self.atom_df.atom_id.isin(HBOND_ATOMS)]
-
-        hbond_atom_dist_mat = squareform(
-            pdist(
-                hbond_atom_df[["pos_x", "pos_y", "pos_z"]], metric="euclidean"
-            )
-        )
-        prox_hbond_atom_is = np.where(
-            np.triu(hbond_atom_dist_mat <= threshold)
-        )
-
-        hbond_res_us = self.res_df.loc[
-            hbond_atom_df.iloc[prox_hbond_atom_is[0]].res_id.values
-        ]
-        hbond_res_vs = self.res_df.loc[
-            hbond_atom_df.iloc[prox_hbond_atom_is[1]].res_id.values
-        ]
-        hbond_res_pairs = zip(hbond_res_us.iterrows(), hbond_res_vs.iterrows())
+        atom_df = self.atom_df[self.atom_df.atom_id.isin(HBOND_ATOMS)]
+        res_pairs = self.get_residue_interactions(atom_df, threshold)
 
         hbonds = list()
-        for ((u, res_u), (v, res_v)) in hbond_res_pairs:
-            if self.is_adjacent(res_u, res_v, seq_gap=seq_gap):
-                continue
-            elif (
-                self.graph.has_edge(u, v) and
-                self.graph.get_edge_data(u, v)[0]["data"]["type"] == "hbond"
-            ):
+        for ((u, res_u), (v, res_v)) in res_pairs:
+            if u == v or self.is_adjacent(res_u, res_v, seq_gap=seq_gap):
                 continue
             edge = dict(u=u, v=v, type="hbond", weight=None)
             self.graph.add_edge(u, v, data=edge)
@@ -206,24 +191,10 @@ class ProtGraph:
         cys_res_df = self.res_df[self.res_df.aa_id == "CYS"]
         cys_atom_df = self.atom_df[self.atom_df.res_id.isin(cys_res_df.index)]
         sulf_df = cys_atom_df[cys_atom_df.atom_id == "SG"]
-
-        sulf_dist_mat = squareform(
-            pdist(sulf_df[["pos_x", "pos_y", "pos_z"]], metric="euclidean")
-        )
-        prox_sulf_is = np.where(np.triu(sulf_dist_mat <= threshold))
-
-        disulf_res_us = cys_res_df.loc[
-            sulf_df.iloc[prox_sulf_is[0]].res_id.values
-        ]
-        disulf_res_vs = cys_res_df.loc[
-            sulf_df.iloc[prox_sulf_is[1]].res_id.values
-        ]
-        disulf_res_pairs = zip(
-            disulf_res_us.iterrows(), disulf_res_vs.iterrows()
-        )
+        res_pairs = self.get_residue_interactions(sulf_df, threshold)
 
         disulf_bridges = list()
-        for ((u, res_u), (v, res_v)) in disulf_res_pairs:
+        for ((u, res_u), (v, res_v)) in res_pairs:
             if u == v or self.is_adjacent(res_u, res_v):
                 continue
             edge = dict(u=u, v=v, type="disulf", weight=None)
