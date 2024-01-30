@@ -50,17 +50,17 @@ class ProtGraph:
     @property
     def __len__(self):
 
-        return len(self.res_df)
+        return self.res_df.shape[0]
 
     def add_residues(self, pdb_struct: Structure):
 
-        atoms = []
+        atoms = list()
         for chain in pdb_struct.get_chains():
             chain_id = chain.get_id().capitalize()
             for chain_i, res in enumerate(chain.get_residues()):
                 res_id = chain_id + str(chain_i)
                 c_alpha = None
-                res_atoms = []
+                res_atoms = list()
                 for atom in res.get_atoms():
                     atom_id = atom.get_name()
                     if atom_id == C_ALPHA and c_alpha is None:
@@ -108,6 +108,24 @@ class ProtGraph:
             res_u.chain == res_v.chain and res_u.chain_i != res_v.chain_i and
             abs(res_u.chain_i - res_v.chain_i) <= seq_gap
         )
+    
+    def add_sequence_edges(self):
+
+        seq_edges = list()
+        for chain, chain_res_df in self.res_df.groupby("chain"):
+            chain_res_df.sort_values("chain_i", inplace=True)
+            for i in range(len(chain_res_df) - 1):
+                u, v = chain + str(i), chain + str(i + 1)
+                edge = dict(u=u, v=v, type="seq", weight=None)
+                self.graph.add_edge(u, v, data=edge)
+                seq_edges.append(edge)
+        
+        print(f"Added {len(seq_edges)} sequence edges")
+        self.edge_df = pd.concat(
+            [self.edge_df, pd.DataFrame(seq_edges)], ignore_index=True
+        )
+
+        return
 
     def add_radius_edges(self, r: float, seq_gap: int = 1, anchor=C_ALPHA):
 
@@ -121,13 +139,13 @@ class ProtGraph:
         dist_mat = squareform(
             pdist(atom_df[["pos_x", "pos_y", "pos_z"]], metric="euclidean")
         )
-        prox_is = np.where(np.triu(dist_mat <= r))
+        prox_is = np.where(dist_mat <= r)
 
         res_us = self.res_df.loc[atom_df.iloc[prox_is[0]].res_id.values]
         res_vs = self.res_df.loc[atom_df.iloc[prox_is[1]].res_id.values]
         res_pairs = zip(res_us.iterrows(), res_vs.iterrows())
 
-        radius_edges = []
+        radius_edges = list()
         for ((u, res_u), (v, res_v)) in res_pairs:
             if u == v or self.is_adjacent(res_u, res_v, seq_gap=seq_gap):
                 continue
@@ -142,7 +160,7 @@ class ProtGraph:
 
         return
 
-    def add_hydrogen_bonds(self, threshold: float = 3.5, seq_gap: int = 2):
+    def add_hydrogen_bonds(self, threshold: float = 3.5, seq_gap: int = 3):
 
         hbond_atom_df = self.atom_df[self.atom_df.atom_id.isin(HBOND_ATOMS)]
 
@@ -163,9 +181,14 @@ class ProtGraph:
         ]
         hbond_res_pairs = zip(hbond_res_us.iterrows(), hbond_res_vs.iterrows())
 
-        hbonds = []
+        hbonds = list()
         for ((u, res_u), (v, res_v)) in hbond_res_pairs:
-            if u == v or self.is_adjacent(res_u, res_v, seq_gap=seq_gap):
+            if self.is_adjacent(res_u, res_v, seq_gap=seq_gap):
+                continue
+            elif (
+                self.graph.has_edge(u, v) and
+                self.graph.get_edge_data(u, v)[0]["data"]["type"] == "hbond"
+            ):
                 continue
             edge = dict(u=u, v=v, type="hbond", weight=None)
             self.graph.add_edge(u, v, data=edge)
@@ -199,7 +222,7 @@ class ProtGraph:
             disulf_res_us.iterrows(), disulf_res_vs.iterrows()
         )
 
-        disulf_bridges = []
+        disulf_bridges = list()
         for ((u, res_u), (v, res_v)) in disulf_res_pairs:
             if u == v or self.is_adjacent(res_u, res_v):
                 continue
@@ -322,9 +345,9 @@ class ProtGraph:
 
     def _draw_rays(self, fig: go.Figure):
 
-        xs = []
-        ys = []
-        zs = []
+        xs = list()
+        ys = list()
+        zs = list()
         for _, res_atom_df in self.atom_df.groupby("res_id"):
             ca = res_atom_df[res_atom_df.atom_id == C_ALPHA].iloc[0]
             res_atom_df["ca_dist"] = res_atom_df.apply(
