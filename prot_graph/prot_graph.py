@@ -69,6 +69,7 @@ class ProtGraph:
     def add_residues(self, pdb_struct: Structure):
 
         atoms = list()
+        i = 0
         for chain in pdb_struct.get_chains():
             chain_id = chain.get_id().capitalize()
             for chain_i, res in enumerate(chain.get_residues()):
@@ -84,7 +85,7 @@ class ProtGraph:
                         dict(
                             id=f"{res_id}_{atom_type}",
                             atom_type=atom_type,
-                            res_id=res_id,
+                            res_i=i,
                             pos_x=pos[0],
                             pos_y=pos[1],
                             pos_z=pos[2]
@@ -96,8 +97,9 @@ class ProtGraph:
                     atoms.extend(res_atoms)
                 pos = c_alpha.get_coord()
                 self.graph.add_node(
-                    res_id,
+                    i,
                     **dict(
+                        id=res_id,
                         chain=chain_id,
                         chain_i=chain_i,
                         res_type=res.get_resname(),
@@ -106,12 +108,13 @@ class ProtGraph:
                         pos_z=pos[2]
                     )
                 )
+                i += 1
 
         print(f"Added {len(self.graph)} residues")
 
         return (
             pd.DataFrame.from_dict(self.graph.nodes, orient="index"),
-            pd.DataFrame(atoms).set_index("id", inplace=False)
+            pd.DataFrame(atoms)
         )
 
     def is_adjacent(
@@ -134,20 +137,23 @@ class ProtGraph:
         dist_mask = dist_mat <= min_dist
         if symmetric:
             dist_mask = np.triu(dist_mask)
-        prox_i_pairs = set(list(zip(*np.where(dist_mask))))
-
-        res_us = self.res_df.loc[atom_df.iloc[[x[0] for x in prox_i_pairs]].res_id.values]
-        res_vs = self.res_df.loc[atom_df.iloc[[x[1] for x in prox_i_pairs]].res_id.values]
+        prox_atom_pairs = list(zip(*np.where(dist_mask)))
+        prox_res_pairs = list(set(zip(
+            atom_df.iloc[[x[0] for x in prox_atom_pairs]].res_i.values,
+            atom_df.iloc[[x[1] for x in prox_atom_pairs]].res_i.values
+        )))
+        res_us = self.res_df.loc[[x[0] for x in prox_res_pairs]]
+        res_vs = self.res_df.loc[[x[1] for x in prox_res_pairs]]
         
         return zip(res_us.iterrows(), res_vs.iterrows())
     
     def add_sequence_edges(self):
 
         seq_edges = list()
-        for chain, chain_res_df in self.res_df.groupby("chain"):
+        for _, chain_res_df in self.res_df.groupby("chain"):
             chain_res_df.sort_values("chain_i", inplace=True)
             for i in range(len(chain_res_df) - 1):
-                u, v = chain + str(i), chain + str(i + 1)
+                u, v = chain_res_df.iloc[i].name, chain_res_df.iloc[i + 1].name
                 edge = dict(u=u, v=v, type="seq", weight=None)
                 self.graph.add_edge(u, v, data=edge)
                 seq_edges.append(edge)
@@ -205,7 +211,7 @@ class ProtGraph:
         
         res_df = self.res_df[self.res_df.res_type.isin(HP_RES)]
         atom_df = self.atom_df[
-            self.atom_df.res_id.isin(res_df.index) &
+            self.atom_df.res_i.isin(res_df.index) &
             ~self.atom_df.atom_type.isin(BACKBONE_ATOMS)
         ]
         res_pairs = self.get_residue_interactions(atom_df, threshold)
@@ -229,7 +235,7 @@ class ProtGraph:
         
         res_df = self.res_df[self.res_df.res_type.isin(POS_RES + NEG_RES)]
         atom_df = self.atom_df[
-            self.atom_df.res_id.isin(res_df.index) &
+            self.atom_df.res_i.isin(res_df.index) &
             ~self.atom_df.atom_type.isin(BACKBONE_ATOMS)
         ]
         res_pairs = self.get_residue_interactions(atom_df, threshold)
@@ -253,7 +259,7 @@ class ProtGraph:
 
         res_df = self.res_df[self.res_df.res_type.isin(SB_CATIONS + SB_ANIONS)]
         atom_df = self.atom_df[
-            self.atom_df.res_id.isin(res_df.index) &
+            self.atom_df.res_i.isin(res_df.index) &
             self.atom_df.atom_type.isin(SB_ATOMS)
         ]
         res_pairs = self.get_residue_interactions(atom_df, threshold)
@@ -280,7 +286,7 @@ class ProtGraph:
     def add_disulfide_bridges(self, threshold: float = 2.2, seq_gap: int = 2):
 
         cys_res_df = self.res_df[self.res_df.res_type == "CYS"]
-        cys_atom_df = self.atom_df[self.atom_df.res_id.isin(cys_res_df.index)]
+        cys_atom_df = self.atom_df[self.atom_df.res_i.isin(cys_res_df.index)]
         sulf_df = cys_atom_df[cys_atom_df.atom_type == "SG"]
         res_pairs = self.get_residue_interactions(sulf_df, threshold)
 
@@ -303,7 +309,7 @@ class ProtGraph:
 
         res_df = self.res_df[self.res_df.res_type.isin(PC_PIS + PC_CATIONS)]
         atom_df = self.atom_df[
-            self.atom_df.res_id.isin(res_df.index) &
+            self.atom_df.res_i.isin(res_df.index) &
             ~self.atom_df.atom_type.isin(BACKBONE_ATOMS)
         ]
         res_pairs = self.get_residue_interactions(atom_df, threshold)
@@ -326,6 +332,34 @@ class ProtGraph:
         )
 
         return
+
+    @property
+    def adj_matrix(self):
+
+        n_res = len(self.res_df)
+        n_bond_types = len(self.edge_df.type.unique())
+        adj_matrix = np.zeros((n_bond_types, n_res, n_res), dtype=bool)
+
+        for i, (_, bond_df) in enumerate(self.edge_df.groupby("type")):
+            adj_matrix[
+                i, bond_df.u.values.astype(int), bond_df.v.values.astype(int)
+            ] = 1
+
+        return adj_matrix
+    
+    def calculate_bond_overlap(self):
+
+        adj_matrix = self.adj_matrix
+        n_bond_types = adj_matrix.shape[0]
+        overlap_matrix = np.zeros((n_bond_types, n_bond_types))
+        
+        for i in range(n_bond_types):
+            for j in range(i + 1, n_bond_types):
+                overlap = np.sum(adj_matrix[i, :, :] & adj_matrix[j, :, :])
+                overlap_matrix[i, j] = overlap
+                overlap_matrix[j, i] = overlap
+
+        return overlap_matrix
     
     def find_louvain_communities(self):
 
@@ -343,10 +377,8 @@ class ProtGraph:
             )
             communities = nx.community.louvain_communities(subgraph)
 
-        for i, res_ids in enumerate(communities):
-            self.res_df.loc[self.res_df.index.isin(res_ids), "louvain"] = i
-        
-        print(self.res_df)
+        for i, res_is in enumerate(communities):
+            self.res_df.loc[self.res_df.index.isin(res_is), "louvain"] = i
 
         return
 
