@@ -125,12 +125,12 @@ class ProtGraph:
             res_u.chain == res_v.chain and res_u.chain_i != res_v.chain_i and
             abs(res_u.chain_i - res_v.chain_i) <= seq_gap
         )
-    
+
     def get_residue_interactions(
         self, atom_df: pd.DataFrame, min_dist: int,
         dist_metric: str = "euclidean", symmetric: bool = True
     ) -> None:
-        
+
         dist_mat = squareform(
             pdist(atom_df[["pos_x", "pos_y", "pos_z"]], metric=dist_metric)
         )
@@ -144,9 +144,9 @@ class ProtGraph:
         )))
         res_us = self.res_df.loc[[x[0] for x in prox_res_pairs]]
         res_vs = self.res_df.loc[[x[1] for x in prox_res_pairs]]
-        
+
         return zip(res_us.iterrows(), res_vs.iterrows())
-    
+
     def add_sequence_edges(self):
 
         seq_edges = list()
@@ -157,7 +157,7 @@ class ProtGraph:
                 edge = dict(u=u, v=v, type="seq", weight=None)
                 self.graph.add_edge(u, v, data=edge)
                 seq_edges.append(edge)
-        
+
         print(f"Added {len(seq_edges)} sequence edges")
         self.edge_df = pd.concat(
             [self.edge_df, pd.DataFrame(seq_edges)], ignore_index=True
@@ -204,11 +204,11 @@ class ProtGraph:
         )
 
         return
-    
+
     def add_hydrophobic_interactions(
         self, threshold: float = 5.0, seq_gap: int = 2
     ):
-        
+
         res_df = self.res_df[self.res_df.res_type.isin(HP_RES)]
         atom_df = self.atom_df[
             self.atom_df.res_i.isin(res_df.index) &
@@ -230,9 +230,9 @@ class ProtGraph:
         )
 
         return
-    
+
     def add_ionic_bonds(self, threshold: float = 6.0, seq_gap: int = 2):
-        
+
         res_df = self.res_df[self.res_df.res_type.isin(POS_RES + NEG_RES)]
         atom_df = self.atom_df[
             self.atom_df.res_i.isin(res_df.index) &
@@ -247,7 +247,7 @@ class ProtGraph:
             edge = dict(u=u, v=v, type="ionic", weight=None)
             self.graph.add_edge(u, v, data=edge)
             ibs.append(edge)
-        
+
         print(f"Added {len(ibs)} ionic bonds")
         self.edge_df = pd.concat(
             [self.edge_df, pd.DataFrame(ibs)], ignore_index=True
@@ -275,7 +275,7 @@ class ProtGraph:
                 edge = dict(u=u, v=v, type="salt", weight=None)
                 self.graph.add_edge(u, v, data=edge)
                 sbs.append(edge)
-        
+
         print(f"Added {len(sbs)} salt bridges")
         self.edge_df = pd.concat(
             [self.edge_df, pd.DataFrame(sbs)], ignore_index=True
@@ -304,7 +304,7 @@ class ProtGraph:
         )
 
         return
-    
+
     def add_pi_cation_bonds(self, threshold: float = 6.0, seq_gap: int = 2):
 
         res_df = self.res_df[self.res_df.res_type.isin(PC_PIS + PC_CATIONS)]
@@ -325,7 +325,7 @@ class ProtGraph:
                 edge = dict(u=u, v=v, type="pc", weight=None)
                 self.graph.add_edge(u, v, data=edge)
                 pcs.append(edge)
-        
+
         print(f"Added {len(pcs)} pi-cation bonds")
         self.edge_df = pd.concat(
             [self.edge_df, pd.DataFrame(pcs)], ignore_index=True
@@ -346,13 +346,13 @@ class ProtGraph:
             ] = 1
 
         return adj_matrix
-    
+
     def calculate_bond_overlap(self):
 
         adj_matrix = self.adj_matrix
         n_bond_types = adj_matrix.shape[0]
         overlap_matrix = np.zeros((n_bond_types, n_bond_types))
-        
+
         for i in range(n_bond_types):
             for j in range(i + 1, n_bond_types):
                 overlap = np.sum(adj_matrix[i, :, :] & adj_matrix[j, :, :])
@@ -360,7 +360,7 @@ class ProtGraph:
                 overlap_matrix[j, i] = overlap
 
         return overlap_matrix
-    
+
     def find_louvain_communities(self):
 
         self.res_df["louvain"] = -1
