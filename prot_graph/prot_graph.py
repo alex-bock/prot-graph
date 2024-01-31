@@ -7,16 +7,28 @@ import numpy as np
 import pandas as pd
 from plotly.colors import sample_colorscale
 import plotly.graph_objects as go
-from scipy.spatial.distance import euclidean, squareform, pdist
+from scipy.spatial.distance import squareform, pdist
 from sklearn.preprocessing import minmax_scale
 
 
 C_ALPHA = "CA"
+BACKBONE_ATOMS = ["C", C_ALPHA, "N", "O"]
+
 HBOND_ATOMS = [
     "N", "ND", "NE", "NH", "NZ", "O", "OD1", "OD2", "OE", "OG", "OH"
 ]
+
 HP_RES = ["ALA", "ILU", "LEU", "MET", "PHE", "PRO", "TRP", "TYR", "VAL"]
-BACKBONE_ATOMS = ["C", C_ALPHA, "N", "O"]
+
+POS_RES = ["ARG", "HIS", "LYS"]
+NEG_RES = ["ASP", "GLU"]
+
+SB_CATIONS = ["ARG", "LYS"]
+SB_ANIONS = ["ASP", "GLU"]
+SB_ATOMS = ["NH1", "NH2", "NZ", "OD1", "OD2", "OE1", "OE2"]
+
+PC_PIS = ["PHE", "TRP", "TYR"]
+PC_CATIONS = ["ARG", "LYS"]
 
 
 @dataclass
@@ -212,8 +224,60 @@ class ProtGraph:
         )
 
         return
+    
+    def add_ionic_bonds(self, threshold: float = 6.0, seq_gap: int = 2):
+        
+        res_df = self.res_df[self.res_df.res_type.isin(POS_RES + NEG_RES)]
+        atom_df = self.atom_df[
+            self.atom_df.res_id.isin(res_df.index) &
+            ~self.atom_df.atom_type.isin(BACKBONE_ATOMS)
+        ]
+        res_pairs = self.get_residue_interactions(atom_df, threshold)
 
-    def add_disulfide_bridges(self, threshold: float = 2.2):
+        ibs = list()
+        for ((u, res_u), (v, res_v)) in res_pairs:
+            if u == v or self.is_adjacent(res_u, res_v, seq_gap=seq_gap):
+                continue
+            edge = dict(u=u, v=v, type="ionic", weight=None)
+            self.graph.add_edge(u, v, data=edge)
+            ibs.append(edge)
+        
+        print(f"Added {len(ibs)} ionic bonds")
+        self.edge_df = pd.concat(
+            [self.edge_df, pd.DataFrame(ibs)], ignore_index=True
+        )
+
+        return
+
+    def add_salt_bridges(self, threshold: float = 4.0, seq_gap: int = 2):
+
+        res_df = self.res_df[self.res_df.res_type.isin(SB_CATIONS + SB_ANIONS)]
+        atom_df = self.atom_df[
+            self.atom_df.res_id.isin(res_df.index) &
+            self.atom_df.atom_type.isin(SB_ATOMS)
+        ]
+        res_pairs = self.get_residue_interactions(atom_df, threshold)
+
+        sbs = list()
+        for ((u, res_u), (v, res_v)) in res_pairs:
+            if u == v or self.is_adjacent(res_u, res_v, seq_gap=seq_gap):
+                continue
+            elif (
+                res_u.res_type in SB_CATIONS and res_v.res_type in SB_ANIONS or
+                res_u.res_type in SB_ANIONS and res_v.res_type in SB_CATIONS
+            ):
+                edge = dict(u=u, v=v, type="salt", weight=None)
+                self.graph.add_edge(u, v, data=edge)
+                sbs.append(edge)
+        
+        print(f"Added {len(sbs)} salt bridges")
+        self.edge_df = pd.concat(
+            [self.edge_df, pd.DataFrame(sbs)], ignore_index=True
+        )
+
+        return
+
+    def add_disulfide_bridges(self, threshold: float = 2.2, seq_gap: int = 2):
 
         cys_res_df = self.res_df[self.res_df.res_type == "CYS"]
         cys_atom_df = self.atom_df[self.atom_df.res_id.isin(cys_res_df.index)]
@@ -222,7 +286,7 @@ class ProtGraph:
 
         disulf_bridges = list()
         for ((u, res_u), (v, res_v)) in res_pairs:
-            if u == v or self.is_adjacent(res_u, res_v):
+            if u == v or self.is_adjacent(res_u, res_v, seq_gap=seq_gap):
                 continue
             edge = dict(u=u, v=v, type="disulf", weight=None)
             self.graph.add_edge(u, v, data=edge)
@@ -231,6 +295,34 @@ class ProtGraph:
         print(f"Added {len(disulf_bridges)} disulfide bridges")
         self.edge_df = pd.concat(
             [self.edge_df, pd.DataFrame(disulf_bridges)], ignore_index=True
+        )
+
+        return
+    
+    def add_pi_cation_bonds(self, threshold: float = 6.0, seq_gap: int = 2):
+
+        res_df = self.res_df[self.res_df.res_type.isin(PC_PIS + PC_CATIONS)]
+        atom_df = self.atom_df[
+            self.atom_df.res_id.isin(res_df.index) &
+            ~self.atom_df.atom_type.isin(BACKBONE_ATOMS)
+        ]
+        res_pairs = self.get_residue_interactions(atom_df, threshold)
+
+        pcs = list()
+        for ((u, res_u), (v, res_v)) in res_pairs:
+            if u == v or self.is_adjacent(res_u, res_v, seq_gap=seq_gap):
+                continue
+            elif (
+                res_u.res_type in PC_PIS and res_v.res_type in PC_CATIONS or
+                res_u.res_type in PC_CATIONS and res_v.res_type in PC_PIS
+            ):
+                edge = dict(u=u, v=v, type="pc", weight=None)
+                self.graph.add_edge(u, v, data=edge)
+                pcs.append(edge)
+        
+        print(f"Added {len(pcs)} pi-cation bonds")
+        self.edge_df = pd.concat(
+            [self.edge_df, pd.DataFrame(pcs)], ignore_index=True
         )
 
         return
