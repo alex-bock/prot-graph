@@ -6,6 +6,7 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 from plotly.colors import sample_colorscale
+import plotly.figure_factory as ff
 import plotly.graph_objects as go
 from scipy.spatial.distance import squareform, pdist
 from sklearn.preprocessing import minmax_scale
@@ -56,8 +57,9 @@ class ProtGraph:
 
         self.pdb_id = pdb_struct.get_id()
         self.graph = nx.MultiGraph()
-        self.res_df, self.atom_df = self.add_residues(pdb_struct)
+        self.add_residues(pdb_struct)
         self.edge_df = pd.DataFrame(columns=["u", "v", "type", "weight"])
+        self.bond_types = list()
 
         return
 
@@ -69,11 +71,14 @@ class ProtGraph:
     def add_residues(self, pdb_struct: Structure):
 
         atoms = list()
+        res_pos_matrix = list()
         i = 0
         for chain in pdb_struct.get_chains():
             chain_id = chain.get_id().capitalize()
-            for chain_i, res in enumerate(chain.get_residues()):
+            for _, res in enumerate(chain.get_residues()):
+                chain_i = res.get_full_id()[3][1]
                 res_id = chain_id + str(chain_i)
+                print(res_id)
                 c_alpha = None
                 res_atoms = list()
                 for atom in res.get_atoms():
@@ -91,31 +96,28 @@ class ProtGraph:
                             pos_z=pos[2]
                         )
                     )
-                if c_alpha is None:
-                    continue
-                else:
+                if c_alpha is not None:
                     atoms.extend(res_atoms)
-                pos = c_alpha.get_coord()
-                self.graph.add_node(
-                    i,
-                    **dict(
-                        id=res_id,
-                        chain=chain_id,
-                        chain_i=chain_i,
-                        res_type=res.get_resname(),
-                        pos_x=pos[0],
-                        pos_y=pos[1],
-                        pos_z=pos[2]
+                    pos = c_alpha.get_coord()
+                    self.graph.add_node(
+                        i,
+                        **dict(
+                            id=res_id,
+                            chain=chain_id,
+                            chain_i=chain_i,
+                            res_type=res.get_resname()
+                        )
                     )
-                )
-                i += 1
+                    res_pos_matrix.append([pos[0], pos[1], pos[2]])
+                    i += 1
 
         print(f"Added {len(self.graph)} residues")
 
-        return (
-            pd.DataFrame.from_dict(self.graph.nodes, orient="index"),
-            pd.DataFrame(atoms)
-        )
+        self.res_pos_matrix = np.array(res_pos_matrix)
+        self.res_df = pd.DataFrame.from_dict(self.graph.nodes, orient="index")
+        self.atom_df = pd.DataFrame(atoms)
+
+        return
 
     def is_adjacent(
         self, res_u: pd.Series, res_v: pd.Series, seq_gap: int = 1
@@ -162,6 +164,7 @@ class ProtGraph:
         self.edge_df = pd.concat(
             [self.edge_df, pd.DataFrame(seq_edges)], ignore_index=True
         )
+        self.bond_types.append("seq")
 
         return
 
@@ -182,6 +185,7 @@ class ProtGraph:
         self.edge_df = pd.concat(
             [self.edge_df, pd.DataFrame(radius_edges)], ignore_index=True
         )
+        self.bond_types.append("radius")
 
         return
 
@@ -202,6 +206,7 @@ class ProtGraph:
         self.edge_df = pd.concat(
             [self.edge_df, pd.DataFrame(hbonds)], ignore_index=True
         )
+        self.bond_types.append("hbond")
 
         return
 
@@ -228,6 +233,7 @@ class ProtGraph:
         self.edge_df = pd.concat(
             [self.edge_df, pd.DataFrame(hpis)], ignore_index=True
         )
+        self.bond_types.append("hp")
 
         return
 
@@ -252,6 +258,7 @@ class ProtGraph:
         self.edge_df = pd.concat(
             [self.edge_df, pd.DataFrame(ibs)], ignore_index=True
         )
+        self.bond_types.append("ionic")
 
         return
 
@@ -280,6 +287,7 @@ class ProtGraph:
         self.edge_df = pd.concat(
             [self.edge_df, pd.DataFrame(sbs)], ignore_index=True
         )
+        self.bond_types.append("salt")
 
         return
 
@@ -294,7 +302,7 @@ class ProtGraph:
         for ((u, res_u), (v, res_v)) in res_pairs:
             if u == v or self.is_adjacent(res_u, res_v, seq_gap=seq_gap):
                 continue
-            edge = dict(u=u, v=v, type="disulf", weight=None)
+            edge = dict(u=u, v=v, type="disulfide", weight=None)
             self.graph.add_edge(u, v, data=edge)
             disulf_bridges.append(edge)
 
@@ -302,6 +310,7 @@ class ProtGraph:
         self.edge_df = pd.concat(
             [self.edge_df, pd.DataFrame(disulf_bridges)], ignore_index=True
         )
+        self.bond_types.append("disulfide")
 
         return
 
@@ -330,6 +339,7 @@ class ProtGraph:
         self.edge_df = pd.concat(
             [self.edge_df, pd.DataFrame(pcs)], ignore_index=True
         )
+        self.bond_types.append("pc")
 
         return
 
@@ -337,27 +347,45 @@ class ProtGraph:
     def adj_matrix(self):
 
         n_res = len(self.res_df)
-        n_bond_types = len(self.edge_df.type.unique())
+        n_bond_types = len(self.bond_types)
         adj_matrix = np.zeros((n_bond_types, n_res, n_res), dtype=bool)
 
-        for i, (_, bond_df) in enumerate(self.edge_df.groupby("type")):
+        for i in range(n_bond_types):
+            bond_df = self.edge_df[self.edge_df.type == self.bond_types[i]]
             adj_matrix[
                 i, bond_df.u.values.astype(int), bond_df.v.values.astype(int)
             ] = 1
 
         return adj_matrix
+    
+    @property
+    def connected_components(self):
 
-    def calculate_bond_overlap(self):
+        return list(nx.connected_components(self.graph))
+
+    def calculate_bond_overlap(self, show: bool = False):
 
         adj_matrix = self.adj_matrix
         n_bond_types = adj_matrix.shape[0]
-        overlap_matrix = np.zeros((n_bond_types, n_bond_types))
+        overlap_matrix = np.zeros((n_bond_types, n_bond_types), dtype=int)
 
         for i in range(n_bond_types):
             for j in range(i + 1, n_bond_types):
                 overlap = np.sum(adj_matrix[i, :, :] & adj_matrix[j, :, :])
                 overlap_matrix[i, j] = overlap
                 overlap_matrix[j, i] = overlap
+        
+        for (i, j) in zip(*np.where(np.triu(overlap_matrix > 0))):
+            print(
+                f"""- {self.bond_types[i]} - {self.bond_types[j]} : \
+                {int(overlap_matrix[i, j])} overlapping bonds"""
+            )
+        
+        if show:
+            fig = ff.create_annotated_heatmap(
+                overlap_matrix, x=self.bond_types, y=self.bond_types
+            )
+            fig.show()
 
         return overlap_matrix
 
@@ -409,16 +437,25 @@ class ProtGraph:
         for val, val_res_df in self.res_df.groupby(color_field):
             fig.add_trace(
                 go.Scatter3d(
-                    x=val_res_df.pos_x,
-                    y=val_res_df.pos_y,
-                    z=val_res_df.pos_z,
+                    x=[
+                        self.res_pos_matrix[i][0]
+                        for i in val_res_df.index.values
+                    ],
+                    y=[
+                        self.res_pos_matrix[i][1]
+                        for i in val_res_df.index.values
+                    ],
+                    z=[
+                        self.res_pos_matrix[i][2]
+                        for i in val_res_df.index.values
+                    ],
                     mode="markers",
                     marker=dict(
                         symbol="circle",
                         size=3,
                         color=val_color_map[val]
                     ),
-                    text=val_res_df.index,
+                    text=val_res_df.id,
                     hoverinfo="text",
                     name=f"{color_field}: {val}"
                 )
@@ -428,35 +465,36 @@ class ProtGraph:
 
     def _draw_edges(self, fig: go.Figure):
 
-        for edge_type, edge_type_df in self.edge_df.groupby("type"):
+        adj_matrix = self.adj_matrix
+
+        for i in range(adj_matrix.shape[0]):
+            bond_adj_matrix = adj_matrix[i, :, :]
+            bonds = list(zip(*np.where(bond_adj_matrix)))
             fig.add_trace(
                 go.Scatter3d(
                     x=[
-                        x for _, edge in edge_type_df.iterrows()
-                        for x in [
-                            self.res_df.loc[edge.u].pos_x,
-                            self.res_df.loc[edge.v].pos_x,
+                        x for res_i in bonds for x in [
+                            self.res_pos_matrix[res_i[0]][0],
+                            self.res_pos_matrix[res_i[1]][0],
                             None
                         ]
                     ],
                     y=[
-                        y for _, edge in edge_type_df.iterrows()
-                        for y in [
-                            self.res_df.loc[edge.u].pos_y,
-                            self.res_df.loc[edge.v].pos_y,
+                        y for res_i in bonds for y in [
+                            self.res_pos_matrix[res_i[0]][1],
+                            self.res_pos_matrix[res_i[1]][1],
                             None
                         ]
                     ],
                     z=[
-                        z for _, edge in edge_type_df.iterrows()
-                        for z in [
-                            self.res_df.loc[edge.u].pos_z,
-                            self.res_df.loc[edge.v].pos_z,
+                        z for res_i in bonds for z in [
+                            self.res_pos_matrix[res_i[0]][2],
+                            self.res_pos_matrix[res_i[1]][2],
                             None
                         ]
                     ],
                     mode="lines",
-                    name=edge_type,
+                    name=self.bond_types[i],
                     opacity=0.5
                 )
             )

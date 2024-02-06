@@ -1,8 +1,6 @@
 
 import sys
 
-import networkx as nx
-
 from prot_graph.datasets import PDB
 from prot_graph.prot_graph import ProtGraph
 
@@ -18,14 +16,26 @@ if __name__ == "__main__":
     print("Building graph...")
     graph = ProtGraph(pdb_struct)
     graph.add_sequence_edges()
-    graph.add_radius_edges(r=8.0)
-    graph.add_hydrogen_bonds()
-    graph.add_hydrophobic_interactions()
-    graph.add_ionic_bonds()
-    graph.add_salt_bridges()
-    graph.add_disulfide_bridges()
-    graph.add_pi_cation_bonds()
-    graph.visualize(color_residue_by="chain", hide_residues=True)
+    print(f" - {len(graph.connected_components)} components")
 
-    for cc in nx.connected_components(graph.graph):
-        print(len(cc))
+    graph.add_hydrophobic_interactions()
+    print(f" - {len(graph.connected_components)} components")
+
+    graph.add_hydrogen_bonds()
+    print(f" - {len(graph.connected_components)} components")
+
+    graph.add_ionic_bonds()
+    print(f" - {len(graph.connected_components)} components")
+
+    graph.add_pi_cation_bonds()
+    print(f" - {len(graph.connected_components)} components")
+
+    graph.add_salt_bridges()
+    print(f" - {len(graph.connected_components)} components")
+
+    graph.add_disulfide_bridges()
+    print(f" - {len(graph.connected_components)} components")
+
+    graph.visualize(color_residue_by="chain", hide_residues=False)
+    
+    print(graph.calculate_bond_overlap(show=True))
