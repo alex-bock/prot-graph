@@ -5,28 +5,28 @@ import urllib.request
 from Bio.PDB import PDBParser
 from Bio.PDB.Structure import Structure
 
+from .dataset import Dataset
 
-DEFAULT_PDB_CACHE_DIR = "./data/pdb/"
+
+PDB_DIR = "./data/pdb/"
 PDB_EXT = ".pdb"
 PDB_URL = "http://files.rcsb.org/download/"
 
 
-class PDB:
+class PDB(Dataset):
 
-    def __init__(self, cache_dir: str = DEFAULT_PDB_CACHE_DIR):
+    def __init__(self, pdb_dir: str = PDB_DIR):
 
-        if not os.path.exists(cache_dir):
-            os.makedirs(cache_dir)
+        super().__init__(data_dir=pdb_dir)
 
-        self.cache_dir = cache_dir
         self.parser = PDBParser(QUIET=True)
 
         return
 
-    def download_pdb_record(self, pdb_id: str, replace: bool = False):
+    def download_record(self, id: str, replace: bool = False):
 
-        pdb_fn = pdb_id + PDB_EXT
-        pdb_fp = os.path.join(self.cache_dir, pdb_fn)
+        pdb_fn = id + PDB_EXT
+        pdb_fp = os.path.join(self.data_dir, pdb_fn)
 
         if os.path.exists(pdb_fp) and not replace:
             return
@@ -35,11 +35,11 @@ class PDB:
 
         return
 
-    def load_pdb_structure(self, pdb_id: str) -> Structure:
+    def load_record(self, id: str) -> Structure:
 
-        pdb_fp = os.path.join(self.cache_dir, pdb_id + PDB_EXT)
+        pdb_fp = os.path.join(self.data_dir, id + PDB_EXT)
 
         if not os.path.exists(pdb_fp):
             raise FileNotFoundError
 
-        return self.parser.get_structure(pdb_id, pdb_fp)
+        return self.parser.get_structure(id, pdb_fp)
