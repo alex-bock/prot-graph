@@ -16,7 +16,7 @@ class Structure(abc.ABC):
         self.id = id
         self.struct = db.load_record(id)
 
-        self.atom_df, self.res_type_map = self.add_atoms(self.struct)
+        self.atom_df = self.add_atoms(self.struct)
 
         return
 

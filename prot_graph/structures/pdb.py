@@ -1,6 +1,4 @@
 
-from typing import Dict, Tuple
-
 from Bio.PDB.Structure import Structure as PDBStructObj
 import pandas as pd
 
@@ -9,10 +7,9 @@ from .structure import Structure
 
 class PDBStructure(Structure):
 
-    def add_atoms(self, struct: PDBStructObj) -> Tuple[pd.DataFrame, Dict]:
+    def add_atoms(self, struct: PDBStructObj) -> pd.DataFrame:
 
         atoms = list()
-        res_type_map = dict()
         i = 0
         res_i = 0
 
@@ -20,6 +17,7 @@ class PDBStructure(Structure):
             chain_id = chain.get_id().capitalize()
             for _, res in enumerate(chain.get_residues()):
                 chain_i = res.get_full_id()[3][1]
+                res_type = res.get_resname()
                 res_id = chain_id + str(chain_i)
                 for atom in res.get_atoms():
                     atom_type = atom.get_name()
@@ -31,6 +29,7 @@ class PDBStructure(Structure):
                             chain=chain_id,
                             chain_i=chain_i,
                             res_id=res_id,
+                            res_type=res_type,
                             type=atom_type,
                             res_i=res_i,
                             x=pos[0],
@@ -39,7 +38,6 @@ class PDBStructure(Structure):
                         )
                     )
                     i += 1
-                res_type_map[res_i] = res.get_resname()
                 res_i += 1
 
-        return pd.DataFrame(atoms).set_index("i"), res_type_map
+        return pd.DataFrame(atoms).set_index("i")

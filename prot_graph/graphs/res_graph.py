@@ -47,7 +47,7 @@ class ResGraph(ProtGraph):
                     dict(
                         i=res_i,
                         id=res_atoms.res_id.unique()[0],
-                        type=struct.res_type_map[res_i],
+                        type=res_atoms.res_type.unique()[0],
                         chain=res_atoms.chain.unique()[0],
                         chain_i=res_atoms.chain_i.unique()[0]
                     )
@@ -69,11 +69,6 @@ class ResGraph(ProtGraph):
             res_graph.add_node(i)
 
         return res_graph
-
-    @property
-    def __len__(self):
-
-        return len(self.node_df)
 
     def is_adjacent(self, u: pd.Series, v: pd.Series, seq_gap: int = 0) -> bool:
 

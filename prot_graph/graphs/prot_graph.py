@@ -19,6 +19,8 @@ class ProtGraph(abc.ABC):
 
         self.struct = struct
 
+        return
+
     @property
     def id(self) -> str:
 
@@ -35,6 +37,11 @@ class ProtGraph(abc.ABC):
     def add_nodes(self, node_df: pd.DataFrame) -> nx.Graph:
 
         raise NotImplementedError
+    
+    @property
+    def __len__(self):
+
+        return len(self.node_df)
 
     @property
     def adj_matrix(self):
