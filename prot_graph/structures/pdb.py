@@ -1,11 +1,36 @@
 
 from Bio.PDB.Structure import Structure as PDBStructObj
+from openmm.app import PDBFile
 import pandas as pd
+from pdbfixer import PDBFixer
 
 from .structure import Structure
+from ..datasets import PDB
 
 
 class PDBStructure(Structure):
+
+    def __init__(self, id: str, db: PDB, add_hydrogens: bool = False):
+
+        if add_hydrogens:
+            id = self.add_hydrogens(id, db)
+
+        super().__init__(id=id, db=db)
+
+        return
+    
+    def add_hydrogens(self, pdb_id: str, pdb: PDB) -> str:
+
+        pdb_fp = pdb.find_file(pdb_id)
+        fixer = PDBFixer(filename=pdb_fp)
+        fixer.addMissingHydrogens()
+
+        pdbh_id = f"{pdb_id}_h"
+        pdbh_fp = pdb_fp.replace(pdb_id, pdbh_id)
+        with open(pdbh_fp, "w") as f:
+            PDBFile.writeFile(fixer.topology, fixer.positions, f)
+
+        return pdbh_id
 
     def add_atoms(self, struct: PDBStructObj) -> pd.DataFrame:
 

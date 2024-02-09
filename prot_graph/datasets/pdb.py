@@ -19,6 +19,7 @@ class PDB(Dataset):
 
         super().__init__(data_dir=pdb_dir)
 
+        self.ext = PDB_EXT
         self.parser = PDBParser(QUIET=True)
 
         return
@@ -34,10 +35,19 @@ class PDB(Dataset):
         urllib.request.urlretrieve(os.path.join(PDB_URL, pdb_fn), pdb_fp)
 
         return
+    
+    def find_file(self, id: str) -> str:
+
+        fp = os.path.join(self.data_dir, id + self.ext)
+
+        if not os.path.exists(fp):
+            raise FileNotFoundError
+        
+        return fp
 
     def load_record(self, id: str) -> Structure:
 
-        pdb_fp = os.path.join(self.data_dir, id + PDB_EXT)
+        pdb_fp = os.path.join(self.data_dir, id + self.ext)
 
         if not os.path.exists(pdb_fp):
             raise FileNotFoundError
