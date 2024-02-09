@@ -2,40 +2,21 @@
 import sys
 
 from prot_graph.datasets import PDB
-from prot_graph.prot_graph import ProtGraph
+from prot_graph.structures import PDBStructure
+from prot_graph.graphs import ResGraph
+
 
 if __name__ == "__main__":
 
     pdb_id = sys.argv[1]
-    prot_db = PDB()
-    print("Downloading...")
-    prot_db.download_record(pdb_id)
-    print("Loading...")
-    pdb_struct = prot_db.load_record(pdb_id)
-
-    print("Building graph...")
-    graph = ProtGraph(pdb_struct)
-    graph.add_sequence_edges()
-    print(f" - {len(graph.connected_components)} components")
-
-    graph.add_hydrophobic_interactions()
-    print(f" - {len(graph.connected_components)} components")
-
-    graph.add_hydrogen_bonds()
-    print(f" - {len(graph.connected_components)} components")
-
-    graph.add_ionic_bonds()
-    print(f" - {len(graph.connected_components)} components")
-
-    graph.add_pi_cation_bonds()
-    print(f" - {len(graph.connected_components)} components")
-
-    graph.add_salt_bridges()
-    print(f" - {len(graph.connected_components)} components")
-
-    graph.add_disulfide_bridges()
-    print(f" - {len(graph.connected_components)} components")
-
-    graph.visualize(color_residue_by="chain", hide_residues=True)
     
-    print(graph.calculate_bond_overlap(show=True))
+    pdb = PDB()
+    pdb.download_record(pdb_id)
+
+    pdb_struct = PDBStructure(pdb_id, pdb)
+    res_graph = ResGraph(pdb_struct)
+    res_graph.add_peptide_bonds()
+    res_graph.add_hydrogen_bonds()
+    res_graph.visualize(color_node_by="chain")
+
+    # print(res_graph.struct.get_atom_pairs(5.0, types=["NH1", "NH2", "NZ", "OD1", "OD2", "OE1", "OE2"]))
