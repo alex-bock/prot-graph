@@ -9,7 +9,7 @@ from .prot_graph import ProtGraph
 from ..structures.structure import Structure
 
 
-from .constants import HBOND, HBOND_ATOMS
+from .constants import PEPTIDE, HBOND, PEPTIDE_ATOMS, HBOND_ATOMS
 
 
 class AtomGraph(ProtGraph):
@@ -61,6 +61,25 @@ class AtomGraph(ProtGraph):
         atom_vs = self.node_df.loc[[x[1] for x in atom_pairs]]
 
         return zip(atom_us.iterrows(), atom_vs.iterrows())
+    
+    def add_peptide_bonds(self, dist: float = 1.5):
+
+        atom_pairs = self.get_atom_pairs(dist, types=PEPTIDE_ATOMS)
+        peptide_bonds = list()
+
+        for ((u, _), (v, _)) in atom_pairs:
+            if u == v:
+                continue
+            self.graph.add_edge(u, v, type=PEPTIDE)
+            peptide_bonds.append({"u": u, "v": v, "type": PEPTIDE})
+
+        print(f"Added {len(peptide_bonds)} peptide bonds")
+        self.edge_df = pd.concat(
+            [self.edge_df, pd.DataFrame(peptide_bonds)], ignore_index=True
+        )
+        self.edge_types.append(PEPTIDE)
+
+        return
 
     def add_hydrogen_bonds(self, dist: float = 3.5, seq_gap: int = 3):
 
