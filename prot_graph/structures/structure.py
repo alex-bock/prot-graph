@@ -46,21 +46,25 @@ class Structure(abc.ABC):
         atom_dist_mat = squareform(
             pdist(atom_df[["x", "y", "z"]], metric=dist_metric)
         )
+        atom_is = list(zip(*np.where(np.triu(atom_dist_mat <= dist))))
+        atom_pairs = list(set(zip(
+            atom_df.iloc[[x[0] for x in atom_is]].index.values,
+            atom_df.iloc[[x[1] for x in atom_is]].index.values,
+        )))
 
-        return list(zip(*np.where(np.triu(atom_dist_mat <= dist))))
+        return atom_pairs
 
     def get_res_pairs(
         self, dist: float, types: List[str] = None,
         atom_types: List[str] = None, dist_metric: str = "euclidean"
     ) -> List[Tuple[int, int]]:
 
-        atom_df = self.filter_atom_df(types=atom_types, res_types=types)
         atom_pairs = self.get_atom_pairs(
             dist, types=atom_types, res_types=types, dist_metric=dist_metric
         )
         res_pairs = list(set(zip(
-            atom_df.iloc[[x[0] for x in atom_pairs]].res_i.values,
-            atom_df.iloc[[x[1] for x in atom_pairs]].res_i.values
+            self.atom_df.loc[[x[0] for x in atom_pairs]].res_i.values,
+            self.atom_df.loc[[x[1] for x in atom_pairs]].res_i.values
         )))
 
         return res_pairs

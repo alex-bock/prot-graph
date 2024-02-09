@@ -1,5 +1,5 @@
 
-from typing import Tuple
+from typing import List, Tuple
 
 import networkx as nx
 import numpy as np
@@ -7,6 +7,9 @@ import pandas as pd
 
 from .prot_graph import ProtGraph
 from ..structures.structure import Structure
+
+
+from .constants import HBOND, HBOND_ATOMS
 
 
 class AtomGraph(ProtGraph):
@@ -40,3 +43,40 @@ class AtomGraph(ProtGraph):
             atom_graph.add_node(i)
 
         return atom_graph
+    
+    def is_adjacent(self, u: pd.Series, v: pd.Series, seq_gap: int = 0):
+
+        return u.chain == v.chain and abs(u.chain_i - v.chain_i) < seq_gap + 1
+    
+    def get_atom_pairs(
+        self, dist: float, types: List[str] = None, res_types: List[str] = None,
+        dist_metric: str = "euclidean"
+    ) -> List[Tuple]:
+        
+        atom_pairs = self.struct.get_atom_pairs(
+            dist, types=types, res_types=res_types, dist_metric=dist_metric
+        )
+
+        atom_us = self.node_df.loc[[x[0] for x in atom_pairs]]
+        atom_vs = self.node_df.loc[[x[1] for x in atom_pairs]]
+
+        return zip(atom_us.iterrows(), atom_vs.iterrows())
+
+    def add_hydrogen_bonds(self, dist: float = 3.5, seq_gap: int = 3):
+
+        atom_pairs = self.get_atom_pairs(dist, types=HBOND_ATOMS)
+        hydrogen_bonds = list()
+
+        for ((u, atom_u), (v, atom_v)) in atom_pairs:
+            if self.is_adjacent(atom_u, atom_v, seq_gap=seq_gap):
+                continue
+            self.graph.add_edge(u, v, type=HBOND)
+            hydrogen_bonds.append({"u": u, "v": v, "type": HBOND})
+        
+        print(f"Added {len(hydrogen_bonds)} hydrogen bonds")
+        self.edge_df = pd.concat(
+            [self.edge_df, pd.DataFrame(hydrogen_bonds)], ignore_index=True
+        )
+        self.edge_types.append(HBOND)
+
+        return

@@ -8,13 +8,7 @@ import pandas as pd
 from .prot_graph import ProtGraph
 from ..structures.structure import Structure
 
-
-PEPTIDE = "peptide"
-HBOND = "hbond"
-
-HBOND_ATOMS = [
-    "N", "ND", "NE", "NH", "NZ", "O", "OD1", "OD2", "OE", "OG", "OH"
-]
+from .constants import PEPTIDE, HBOND, HBOND_ATOMS
 
 
 class ResGraph(ProtGraph):
