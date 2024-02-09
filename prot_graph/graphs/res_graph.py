@@ -8,7 +8,7 @@ import pandas as pd
 from .prot_graph import ProtGraph
 from ..structures.structure import Structure
 
-from .constants import PEPTIDE, HBOND, HBOND_ATOMS
+from .constants import PEPTIDE, HBOND, PEPTIDE_ATOMS, HBOND_ATOMS
 
 
 class ResGraph(ProtGraph):
@@ -82,16 +82,16 @@ class ResGraph(ProtGraph):
 
         return zip(res_us.iterrows(), res_vs.iterrows())
 
-    def add_peptide_bonds(self):
+    def add_peptide_bonds(self, dist: float = 1.5):
 
+        res_pairs = self.get_res_pairs(dist, atom_types=PEPTIDE_ATOMS)
         peptide_bonds = list()
 
-        for _, chain_res_df in self.node_df.groupby("chain"):
-            chain_res_df.sort_values("chain_i", inplace=True)
-            for i in range(len(chain_res_df) - 1):
-                u, v = chain_res_df.iloc[i].name, chain_res_df.iloc[i + 1].name
-                self.graph.add_edge(u, v, type=PEPTIDE)
-                peptide_bonds.append({"u": u, "v": v, "type": PEPTIDE})
+        for ((u, _), (v, _)) in res_pairs:
+            if u == v:
+                continue
+            self.graph.add_edge(u, v, type=PEPTIDE)
+            peptide_bonds.append({"u": u, "v": v, "type": PEPTIDE})
 
         print(f"Added {len(peptide_bonds)} peptide bonds")
         self.edge_df = pd.concat(
