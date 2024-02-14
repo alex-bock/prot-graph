@@ -18,7 +18,7 @@ class PDBStructure(Structure):
         super().__init__(id=id, db=db)
 
         return
-    
+
     def add_hydrogens(self, pdb_id: str, pdb: PDB) -> str:
 
         pdb_fp = pdb.find_file(pdb_id)

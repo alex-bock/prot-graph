@@ -37,7 +37,7 @@ class ProtGraph(abc.ABC):
     def add_nodes(self, node_df: pd.DataFrame) -> nx.Graph:
 
         raise NotImplementedError
-    
+
     @property
     def __len__(self):
 

@@ -35,14 +35,14 @@ class PDB(Dataset):
         urllib.request.urlretrieve(os.path.join(PDB_URL, pdb_fn), pdb_fp)
 
         return
-    
+
     def find_file(self, id: str) -> str:
 
         fp = os.path.join(self.data_dir, id + self.ext)
 
         if not os.path.exists(fp):
             raise FileNotFoundError
-        
+
         return fp
 
     def load_record(self, id: str) -> Structure:
