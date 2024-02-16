@@ -9,7 +9,7 @@ from .prot_graph import ProtGraph
 from ..structures.structure import Structure
 
 
-from .constants import PEPTIDE, HBOND, PEPTIDE_ATOMS, HBOND_ATOMS
+from .constants import PEP, PEP_ATOMS, HB, HB_ATOMS
 
 
 class AtomGraph(ProtGraph):
@@ -64,38 +64,38 @@ class AtomGraph(ProtGraph):
 
     def add_peptide_bonds(self, dist: float = 1.5):
 
-        atom_pairs = self.get_atom_pairs(dist, types=PEPTIDE_ATOMS)
+        atom_pairs = self.get_atom_pairs(dist, types=PEP_ATOMS)
         peptide_bonds = list()
 
         for ((u, _), (v, _)) in atom_pairs:
             if u == v:
                 continue
-            self.graph.add_edge(u, v, type=PEPTIDE)
-            peptide_bonds.append({"u": u, "v": v, "type": PEPTIDE})
+            self.graph.add_edge(u, v, type=PEP)
+            peptide_bonds.append({"u": u, "v": v, "type": PEP})
 
         print(f"Added {len(peptide_bonds)} peptide bonds")
         self.edge_df = pd.concat(
             [self.edge_df, pd.DataFrame(peptide_bonds)], ignore_index=True
         )
-        self.edge_types.append(PEPTIDE)
+        self.edge_types.append(PEP)
 
         return
 
     def add_hydrogen_bonds(self, dist: float = 3.5, seq_gap: int = 3):
 
-        atom_pairs = self.get_atom_pairs(dist, types=HBOND_ATOMS)
+        atom_pairs = self.get_atom_pairs(dist, types=HB_ATOMS)
         hydrogen_bonds = list()
 
         for ((u, atom_u), (v, atom_v)) in atom_pairs:
             if self.is_adjacent(atom_u, atom_v, seq_gap=seq_gap):
                 continue
-            self.graph.add_edge(u, v, type=HBOND)
-            hydrogen_bonds.append({"u": u, "v": v, "type": HBOND})
+            self.graph.add_edge(u, v, type=HB)
+            hydrogen_bonds.append({"u": u, "v": v, "type": HB})
 
         print(f"Added {len(hydrogen_bonds)} hydrogen bonds")
         self.edge_df = pd.concat(
             [self.edge_df, pd.DataFrame(hydrogen_bonds)], ignore_index=True
         )
-        self.edge_types.append(HBOND)
+        self.edge_types.append(HB)
 
         return

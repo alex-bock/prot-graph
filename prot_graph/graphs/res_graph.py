@@ -8,7 +8,14 @@ import pandas as pd
 from .prot_graph import ProtGraph
 from ..structures.structure import Structure
 
-from .constants import PEPTIDE, HBOND, PEPTIDE_ATOMS, HBOND_ATOMS
+from .constants import (
+    PEP, PEP_ATOMS,
+    HB, HB_ATOMS,
+    HP, HP_RES,
+    IB, IB_POS_RES, IB_NEG_RES,
+    SB, SB_ANION_RES, SB_CATION_RES, SB_ANIONS, SB_CATIONS,
+    DB, DB_RES, DB_ATOMS
+)
 
 
 class ResGraph(ProtGraph):
@@ -68,6 +75,14 @@ class ResGraph(ProtGraph):
 
         return u.chain == v.chain and abs(u.chain_i - v.chain_i) < seq_gap + 1
 
+    def complementary_res(
+        self, u: pd.Series, v: pd.Series, s1: List, s2: List
+    ) -> bool:
+
+        return (
+            (u.type in s1 and v.type in s2) or (u.type in s2 and v.type in s1)
+        )
+
     def get_res_pairs(
         self, dist: float, types: List[str] = None,
         atom_types: List[str] = None, dist_metric: str = "euclidean"
@@ -84,38 +99,127 @@ class ResGraph(ProtGraph):
 
     def add_peptide_bonds(self, dist: float = 1.5):
 
-        res_pairs = self.get_res_pairs(dist, atom_types=PEPTIDE_ATOMS)
+        res_pairs = self.get_res_pairs(dist, atom_types=PEP_ATOMS)
         peptide_bonds = list()
 
         for ((u, _), (v, _)) in res_pairs:
             if u == v:
                 continue
-            self.graph.add_edge(u, v, type=PEPTIDE)
-            peptide_bonds.append({"u": u, "v": v, "type": PEPTIDE})
+            self.graph.add_edge(u, v, type=PEP)
+            peptide_bonds.append({"u": u, "v": v, "type": PEP})
 
         print(f"Added {len(peptide_bonds)} peptide bonds")
         self.edge_df = pd.concat(
             [self.edge_df, pd.DataFrame(peptide_bonds)], ignore_index=True
         )
-        self.edge_types.append(PEPTIDE)
+        self.edge_types.append(PEP)
 
         return
 
     def add_hydrogen_bonds(self, dist: float = 3.5, seq_gap: int = 3):
 
-        res_pairs = self.get_res_pairs(dist, atom_types=HBOND_ATOMS)
+        res_pairs = self.get_res_pairs(dist, atom_types=HB_ATOMS)
         hydrogen_bonds = list()
 
         for ((u, res_u), (v, res_v)) in res_pairs:
             if u == v or self.is_adjacent(res_u, res_v, seq_gap=seq_gap):
                 continue
-            self.graph.add_edge(u, v, type=HBOND)
-            hydrogen_bonds.append({"u": u, "v": v, "type": HBOND})
+            self.graph.add_edge(u, v, type=HB)
+            hydrogen_bonds.append({"u": u, "v": v, "type": HB})
 
         print(f"Added {len(hydrogen_bonds)} hydrogen bonds")
         self.edge_df = pd.concat(
             [self.edge_df, pd.DataFrame(hydrogen_bonds)], ignore_index=True
         )
-        self.edge_types.append(HBOND)
+        self.edge_types.append(HB)
+
+        return
+
+    def add_hydrophobic_interactions(self, dist: float = 5.0, seq_gap: int = 3):
+
+        res_pairs = self.get_res_pairs(dist, types=HP_RES)
+        hp_interactions = list()
+
+        for ((u, res_u), (v, res_v)) in res_pairs:
+            if u == v or self.is_adjacent(res_u, res_v, seq_gap=seq_gap):
+                continue
+            self.graph.add_edge(u, v, type=HP)
+            hp_interactions.append({"u": u, "v": v, "type": HP})
+
+        print(f"Added {len(hp_interactions)} hydrophobic interactions")
+        self.edge_df = pd.concat(
+            [self.edge_df, pd.DataFrame(hp_interactions)], ignore_index=True
+        )
+        self.edge_types.append(HP)
+
+        return
+
+    def add_ionic_bonds(self, dist: float = 6.0, seq_gap: int = 3):
+
+        res_pairs = self.get_res_pairs(dist, types=IB_POS_RES + IB_NEG_RES)
+        hp_interactions = list()
+
+        for ((u, res_u), (v, res_v)) in res_pairs:
+            if u == v or self.is_adjacent(res_u, res_v, seq_gap=seq_gap):
+                continue
+            elif not self.complementary_res(
+                res_u, res_v, IB_POS_RES, IB_NEG_RES
+            ):
+                continue
+            self.graph.add_edge(u, v, type=IB)
+            hp_interactions.append({"u": u, "v": v, "type": IB})
+
+        print(f"Added {len(hp_interactions)} ionic bonds")
+        self.edge_df = pd.concat(
+            [self.edge_df, pd.DataFrame(hp_interactions)], ignore_index=True
+        )
+        self.edge_types.append(IB)
+
+        return
+
+    def add_salt_bridges(self, dist: float = 4.0, seq_gap: int = 3):
+
+        res_pairs = self.get_res_pairs(
+            dist, types=SB_ANION_RES + SB_CATION_RES,
+            atom_types=SB_ANIONS + SB_CATIONS
+        )
+        salt_bridges = list()
+
+        for ((u, res_u), (v, res_v)) in res_pairs:
+            if u == v or self.is_adjacent(res_u, res_v, seq_gap=seq_gap):
+                continue
+            elif not self.complementary_res(
+                res_u, res_v, SB_ANION_RES, SB_CATION_RES
+            ):
+                continue
+            self.graph.add_edge(u, v, type=SB)
+            salt_bridges.append({"u": u, "v": v, "type": SB})
+
+        print(f"Added {len(salt_bridges)} salt bridges")
+        self.edge_df = pd.concat(
+            [self.edge_df, pd.DataFrame(salt_bridges)], ignore_index=True
+        )
+        self.edge_types.append(SB)
+
+        return
+
+    def add_disulfide_bridges(self, dist: float = 2.2, seq_gap: int = 3):
+
+        res_pairs = self.get_res_pairs(
+            dist, types=DB_RES, atom_types=DB_ATOMS
+        )
+        disulfide_bridges = list()
+
+        for ((u, res_u), (v, res_v)) in res_pairs:
+            if u == v or self.is_adjacent(res_u, res_v, seq_gap=seq_gap):
+                continue
+            self.graph.add_edge(u, v, type=DB)
+            disulfide_bridges.append({"u": u, "v": v, "type": DB})
+
+        print(f"Added {len(disulfide_bridges)} disulfide bridges")
+        self.edge_df = pd.concat(
+            [self.edge_df, pd.DataFrame(disulfide_bridges)], ignore_index=True
+        )
+        self.edge_types.append(DB)
 
         return
