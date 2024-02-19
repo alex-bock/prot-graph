@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Tuple
 
 import numpy as np
 import pandas as pd
-from scipy.spatial.distance import squareform, pdist
+from scipy.spatial.distance import squareform, pdist, euclidean
 
 from ..datasets.dataset import Dataset
 
@@ -68,3 +68,30 @@ class Structure(abc.ABC):
         )))
 
         return res_pairs
+
+    def calculate_hbond_angle(self, atom_i: int, atom_j: int) -> float:
+
+        h_i, dist_i = self.get_nearest_hydrogen(atom_i)
+        h_j, dist_j = self.get_nearest_hydrogen(atom_j)
+        h, _ = min([(h_i, dist_i), (h_j, dist_j)], key=lambda x: x[1])
+
+        pos_i = self.atom_df.loc[atom_i][["x", "y", "z"]].to_numpy()
+        pos_h = self.atom_df.loc[h][["x", "y", "z"]].to_numpy()
+        pos_j = self.atom_df.loc[atom_j][["x", "y", "z"]].to_numpy()
+
+        cos_theta = np.dot(pos_i - pos_h, pos_j - pos_h) / (np.linalg.norm(pos_i - pos_h) * np.linalg.norm(pos_j - pos_h))
+        theta = np.arccos(cos_theta)
+
+        return np.degrees(theta)
+
+    def get_nearest_hydrogen(self, atom_id: int) -> Tuple[int, float]:
+
+        atom = self.atom_df.loc[atom_id]
+        res_atom_df = self.atom_df[self.atom_df.res_id == atom.res_id]
+        res_h_df = res_atom_df[res_atom_df.type.str.startswith("H")]
+        h_dists = res_h_df.apply(
+            lambda x: euclidean([x.x, x.y, x.z], [atom.x, atom.y, atom.z]),
+            axis=1
+        )
+
+        return (h_dists.idxmin(), h_dists.min())

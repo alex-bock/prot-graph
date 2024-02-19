@@ -89,6 +89,8 @@ class AtomGraph(ProtGraph):
         for ((u, atom_u), (v, atom_v)) in atom_pairs:
             if self.is_adjacent(atom_u, atom_v, seq_gap=seq_gap):
                 continue
+            elif self.struct.calculate_hbond_angle(u, v) <= 90.0:
+                continue
             self.graph.add_edge(u, v, type=HB)
             hydrogen_bonds.append({"u": u, "v": v, "type": HB})
 

@@ -122,7 +122,7 @@ class ResGraph(ProtGraph):
         hydrogen_bonds = list()
 
         for ((u, res_u), (v, res_v)) in res_pairs:
-            if u == v or self.is_adjacent(res_u, res_v, seq_gap=seq_gap):
+            if self.is_adjacent(res_u, res_v, seq_gap=seq_gap):
                 continue
             self.graph.add_edge(u, v, type=HB)
             hydrogen_bonds.append({"u": u, "v": v, "type": HB})
@@ -141,7 +141,7 @@ class ResGraph(ProtGraph):
         hp_interactions = list()
 
         for ((u, res_u), (v, res_v)) in res_pairs:
-            if u == v or self.is_adjacent(res_u, res_v, seq_gap=seq_gap):
+            if self.is_adjacent(res_u, res_v, seq_gap=seq_gap):
                 continue
             self.graph.add_edge(u, v, type=HP)
             hp_interactions.append({"u": u, "v": v, "type": HP})
@@ -160,7 +160,7 @@ class ResGraph(ProtGraph):
         hp_interactions = list()
 
         for ((u, res_u), (v, res_v)) in res_pairs:
-            if u == v or self.is_adjacent(res_u, res_v, seq_gap=seq_gap):
+            if self.is_adjacent(res_u, res_v, seq_gap=seq_gap):
                 continue
             elif not self.complementary_res(
                 res_u, res_v, IB_POS_RES, IB_NEG_RES
@@ -186,7 +186,7 @@ class ResGraph(ProtGraph):
         salt_bridges = list()
 
         for ((u, res_u), (v, res_v)) in res_pairs:
-            if u == v or self.is_adjacent(res_u, res_v, seq_gap=seq_gap):
+            if self.is_adjacent(res_u, res_v, seq_gap=seq_gap):
                 continue
             elif not self.complementary_res(
                 res_u, res_v, SB_ANION_RES, SB_CATION_RES
@@ -211,7 +211,7 @@ class ResGraph(ProtGraph):
         disulfide_bridges = list()
 
         for ((u, res_u), (v, res_v)) in res_pairs:
-            if u == v or self.is_adjacent(res_u, res_v, seq_gap=seq_gap):
+            if self.is_adjacent(res_u, res_v, seq_gap=seq_gap):
                 continue
             self.graph.add_edge(u, v, type=DB)
             disulfide_bridges.append({"u": u, "v": v, "type": DB})
