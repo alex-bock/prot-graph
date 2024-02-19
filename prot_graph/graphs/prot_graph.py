@@ -1,6 +1,6 @@
 
 import abc
-from typing import Tuple
+from typing import List, Tuple
 
 import networkx as nx
 import numpy as np
@@ -42,6 +42,21 @@ class ProtGraph(abc.ABC):
     def __len__(self):
 
         return len(self.node_df)
+
+    def get_atom_pairs(
+        self, dist: float, types: List[str] = None, res_types: List[str] = None,
+        theta: float = None, vertex: str = None, dist_metric: str = "euclidean"
+    ) -> List[Tuple[int, int]]:
+
+        atom_pairs = self.struct.get_atom_pairs(
+            dist, types=types, res_types=res_types, theta=theta, vertex=vertex,
+            dist_metric=dist_metric
+        )
+
+        atom_us = self.node_df.loc[[x[0] for x in atom_pairs]]
+        atom_vs = self.node_df.loc[[x[1] for x in atom_pairs]]
+
+        return zip(atom_us.iterrows(), atom_vs.iterrows())
 
     @property
     def adj_matrix(self):

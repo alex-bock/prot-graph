@@ -39,7 +39,7 @@ class Structure(abc.ABC):
 
     def get_atom_pairs(
         self, dist: float, types: List[str] = None, res_types: List[str] = None,
-        dist_metric: str = "euclidean"
+        theta: float = None, vertex: str = None, dist_metric: str = "euclidean"
     ) -> List[Tuple[int, int]]:
 
         atom_df = self.filter_atom_df(types=types, res_types=res_types)
@@ -47,21 +47,23 @@ class Structure(abc.ABC):
             pdist(atom_df[["x", "y", "z"]], metric=dist_metric)
         )
         atom_is = list(zip(*np.where(np.triu(atom_dist_mat <= dist))))
+
         atom_pairs = list(set(zip(
             atom_df.iloc[[x[0] for x in atom_is]].index.values,
             atom_df.iloc[[x[1] for x in atom_is]].index.values,
         )))
 
+        # TODO: probably a faster way of doing this (squareform?)
+        if theta is not None:
+            atom_pairs = [
+                (i, j) for (i, j) in atom_pairs
+                if self.calculate_hbond_angle(i, j) >= theta
+            ]
+
         return atom_pairs
 
-    def get_res_pairs(
-        self, dist: float, types: List[str] = None,
-        atom_types: List[str] = None, dist_metric: str = "euclidean"
-    ) -> List[Tuple[int, int]]:
+    def get_res_pairs(self, atom_pairs: List[Tuple]) -> List[Tuple[int, int]]:
 
-        atom_pairs = self.get_atom_pairs(
-            dist, types=atom_types, res_types=types, dist_metric=dist_metric
-        )
         res_pairs = list(set(zip(
             self.atom_df.loc[[x[0] for x in atom_pairs]].res_i.values,
             self.atom_df.loc[[x[1] for x in atom_pairs]].res_i.values
@@ -79,8 +81,11 @@ class Structure(abc.ABC):
         pos_h = self.atom_df.loc[h][["x", "y", "z"]].to_numpy()
         pos_j = self.atom_df.loc[atom_j][["x", "y", "z"]].to_numpy()
 
-        cos_theta = np.dot(pos_i - pos_h, pos_j - pos_h) / (np.linalg.norm(pos_i - pos_h) * np.linalg.norm(pos_j - pos_h))
-        theta = np.arccos(cos_theta)
+        cos_theta = (
+            np.dot(pos_i - pos_h, pos_j - pos_h) /
+            (np.linalg.norm(pos_i - pos_h) * np.linalg.norm(pos_j - pos_h))
+        )
+        theta = np.arccos(min(cos_theta, 1.0))
 
         return np.degrees(theta)
 

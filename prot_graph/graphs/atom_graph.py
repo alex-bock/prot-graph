@@ -48,20 +48,6 @@ class AtomGraph(ProtGraph):
 
         return u.chain == v.chain and abs(u.chain_i - v.chain_i) < seq_gap + 1
 
-    def get_atom_pairs(
-        self, dist: float, types: List[str] = None, res_types: List[str] = None,
-        dist_metric: str = "euclidean"
-    ) -> List[Tuple]:
-
-        atom_pairs = self.struct.get_atom_pairs(
-            dist, types=types, res_types=res_types, dist_metric=dist_metric
-        )
-
-        atom_us = self.node_df.loc[[x[0] for x in atom_pairs]]
-        atom_vs = self.node_df.loc[[x[1] for x in atom_pairs]]
-
-        return zip(atom_us.iterrows(), atom_vs.iterrows())
-
     def add_peptide_bonds(self, dist: float = 1.5):
 
         atom_pairs = self.get_atom_pairs(dist, types=PEP_ATOMS)
@@ -83,13 +69,13 @@ class AtomGraph(ProtGraph):
 
     def add_hydrogen_bonds(self, dist: float = 3.5, seq_gap: int = 3):
 
-        atom_pairs = self.get_atom_pairs(dist, types=HB_ATOMS)
+        atom_pairs = self.get_atom_pairs(
+            dist, types=HB_ATOMS, theta=90.0
+        )
         hydrogen_bonds = list()
 
         for ((u, atom_u), (v, atom_v)) in atom_pairs:
             if self.is_adjacent(atom_u, atom_v, seq_gap=seq_gap):
-                continue
-            elif self.struct.calculate_hbond_angle(u, v) <= 90.0:
                 continue
             self.graph.add_edge(u, v, type=HB)
             hydrogen_bonds.append({"u": u, "v": v, "type": HB})

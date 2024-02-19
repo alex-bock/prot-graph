@@ -83,14 +83,9 @@ class ResGraph(ProtGraph):
             (u.type in s1 and v.type in s2) or (u.type in s2 and v.type in s1)
         )
 
-    def get_res_pairs(
-        self, dist: float, types: List[str] = None,
-        atom_types: List[str] = None, dist_metric: str = "euclidean"
-    ) -> List[Tuple]:
+    def get_res_pairs(self, atom_pairs: List[Tuple]) -> List[Tuple]:
 
-        res_pairs = self.struct.get_res_pairs(
-            dist, types=types, atom_types=atom_types, dist_metric=dist_metric
-        )
+        res_pairs = self.struct.get_res_pairs(atom_pairs)
 
         res_us = self.node_df.loc[[x[0] for x in res_pairs]]
         res_vs = self.node_df.loc[[x[1] for x in res_pairs]]
@@ -99,7 +94,8 @@ class ResGraph(ProtGraph):
 
     def add_peptide_bonds(self, dist: float = 1.5):
 
-        res_pairs = self.get_res_pairs(dist, atom_types=PEP_ATOMS)
+        atom_pairs = self.struct.get_atom_pairs(dist, types=PEP_ATOMS)
+        res_pairs = self.get_res_pairs(atom_pairs)
         peptide_bonds = list()
 
         for ((u, _), (v, _)) in res_pairs:
@@ -118,7 +114,10 @@ class ResGraph(ProtGraph):
 
     def add_hydrogen_bonds(self, dist: float = 3.5, seq_gap: int = 3):
 
-        res_pairs = self.get_res_pairs(dist, atom_types=HB_ATOMS)
+        atom_pairs = self.struct.get_atom_pairs(
+            dist, types=HB_ATOMS, theta=90.0
+        )
+        res_pairs = self.get_res_pairs(atom_pairs)
         hydrogen_bonds = list()
 
         for ((u, res_u), (v, res_v)) in res_pairs:
