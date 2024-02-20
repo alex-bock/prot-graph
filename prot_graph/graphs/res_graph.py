@@ -40,23 +40,24 @@ class ResGraph(ProtGraph):
         res_pos_lst = list()
         skipped = list()
 
-        for res_i, res_atoms in struct.atom_df.groupby("res_i"):
+        for res_i in range(struct.atom_df.res_i.max() + 1):
+            res_atoms = struct.atom_df[struct.atom_df.res_i == res_i]
+            res_id = res_atoms.res_id.unique()[0]
             if "CA" in res_atoms.type.values:
                 ca = res_atoms[res_atoms.type == "CA"].iloc[0]
                 pos = ca[["x", "y", "z"]].tolist()
                 resx.append(
                     dict(
                         i=res_i,
-                        id=res_atoms.res_id.unique()[0],
+                        id=res_id,
                         type=res_atoms.res_type.unique()[0],
                         chain=res_atoms.chain.unique()[0],
                         chain_i=res_atoms.chain_i.unique()[0]
                     )
                 )
+                res_pos_lst.append(pos)
             else:
-                pos = [-1, -1, -1]
-                skipped.append(res_i)
-            res_pos_lst.append(pos)
+                skipped.append(res_id)
 
         print(f"Added {len(resx)} residues ({len(skipped)} skipped)")
 
@@ -112,10 +113,12 @@ class ResGraph(ProtGraph):
 
         return
 
-    def add_hydrogen_bonds(self, dist: float = 3.5, seq_gap: int = 3):
+    def add_hydrogen_bonds(
+        self, dist: float = 3.5, seq_gap: int = 3, theta: float = None
+    ):
 
         atom_pairs = self.struct.get_atom_pairs(
-            dist, types=HB_ATOMS, theta=90.0
+            dist, types=HB_ATOMS, theta=theta
         )
         res_pairs = self.get_res_pairs(atom_pairs)
         hydrogen_bonds = list()
