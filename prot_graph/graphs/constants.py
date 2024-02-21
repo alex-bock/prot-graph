@@ -1,4 +1,6 @@
 
+DIST = "dist"
+
 PEP = "peptide"
 PEP_ATOMS = ["C", "N"]
 

@@ -9,6 +9,7 @@ from .prot_graph import ProtGraph
 from ..structures.structure import Structure
 
 from .constants import (
+    DIST,
     PEP, PEP_ATOMS,
     HB, HB_ATOMS,
     HP, HP_RES,
@@ -92,6 +93,26 @@ class ResGraph(ProtGraph):
         res_vs = self.node_df.loc[[x[1] for x in res_pairs]]
 
         return zip(res_us.iterrows(), res_vs.iterrows())
+
+    def add_distance_edges(self, dist: float = 8.0):
+
+        atom_pairs = self.struct.get_atom_pairs(dist)
+        res_pairs = self.get_res_pairs(atom_pairs)
+        distance_edges = list()
+
+        for ((u, _), (v, _)) in res_pairs:
+            if u == v:
+                continue
+            self.graph.add_edge(u, v, type=DIST)
+            distance_edges.append({"u": u, "v": v, "type": DIST})
+
+        print(f"Added {len(distance_edges)} distance edges")
+        self.edge_df = pd.concat(
+            [self.edge_df, pd.DataFrame(distance_edges)], ignore_index=True
+        )
+        self.edge_types.append(DIST)
+
+        return
 
     def add_peptide_bonds(self, dist: float = 1.5):
 
