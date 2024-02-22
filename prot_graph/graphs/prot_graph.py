@@ -7,7 +7,9 @@ import numpy as np
 import pandas as pd
 
 from plotly.colors import sample_colorscale
+import plotly.express as px
 import plotly.graph_objects as go
+from sklearn.metrics import confusion_matrix
 from sklearn.preprocessing import minmax_scale
 
 from ..structures.structure import Structure
@@ -63,15 +65,46 @@ class ProtGraph(abc.ABC):
 
         n_nodes = len(self.node_pos_mat)
         n_edge_types = len(self.edge_types)
-        adj_matrix = np.zeros((n_edge_types, n_nodes, n_nodes), dtype=bool)
+        adj_matrix = np.zeros((n_edge_types, n_nodes, n_nodes), dtype=int)
 
         for i in range(n_edge_types):
             edge_df = self.edge_df[self.edge_df.type == self.edge_types[i]]
             adj_matrix[
                 i, edge_df.u.values.astype(int), edge_df.v.values.astype(int)
             ] = 1
+            adj_matrix[
+                i, edge_df.v.values.astype(int), edge_df.u.values.astype(int)
+            ] = 1
 
         return adj_matrix
+
+    def show_contact_map(self, edge_type: str):
+
+        adj_mat = self.adj_matrix
+        i = self.edge_types.index(edge_type)
+
+        fig = px.imshow(adj_mat[i, :, :])
+        fig.show()
+
+        return
+
+    def compare_edges(
+        self, type_1: str, type_2: str, display: bool = True
+    ) -> np.ndarray:
+
+        adj_mat = self.adj_matrix
+        i_1, i_2 = self.edge_types.index(type_1), self.edge_types.index(type_2)
+        adj_mat_1, adj_mat_2 = (
+            adj_mat[i_1, :, :],
+            adj_mat[i_2, :, :]
+        )
+        conf_mat = confusion_matrix(adj_mat_1.flatten(), adj_mat_2.flatten())
+
+        if display:
+            fig = px.imshow(conf_mat)
+            fig.show()
+
+        return conf_mat
 
     def visualize(self, color_node_by: str = "type", hide_nodes: bool = False):
 
