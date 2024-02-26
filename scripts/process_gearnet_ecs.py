@@ -7,8 +7,6 @@ import pandas as pd
 
 sys.path.append(os.getcwd())
 
-from prot_graph.datasets import PDB
-
 
 if __name__ == "__main__":
 
