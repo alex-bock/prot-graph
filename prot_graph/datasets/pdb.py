@@ -3,7 +3,6 @@ import os
 import urllib.request
 
 from Bio.PDB import PDBParser
-from Bio.PDB.Structure import Structure
 
 from .dataset import Dataset
 from ..structures import PDBStructure
