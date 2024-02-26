@@ -1,13 +1,18 @@
 
+import os
 from pathlib import Path
 import sys
 
 import pandas as pd
 
+sys.path.append(os.getcwd())
+
+from prot_graph.datasets import PDB
+
 
 if __name__ == "__main__":
 
-    ec_fp = Path(sys.argv[1])
+    ec_fp, data_dir = Path(sys.argv[1]), Path(sys.argv[2])
 
     with open(ec_fp, "r") as f:
         lines = f.readlines()

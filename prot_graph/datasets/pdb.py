@@ -6,6 +6,7 @@ from Bio.PDB import PDBParser
 from Bio.PDB.Structure import Structure
 
 from .dataset import Dataset
+from ..structures import PDBStructure
 
 
 PDB_DIR = "./data/pdb/"
@@ -20,36 +21,25 @@ class PDB(Dataset):
         super().__init__(data_dir=pdb_dir)
 
         self.ext = PDB_EXT
-        self.parser = PDBParser(QUIET=True)
+        self._pdb_parser = PDBParser(QUIET=True)
 
         return
 
-    def download_record(self, id: str, replace: bool = False):
+    def load_structure(self, id: str, replace: bool = False) -> PDBStructure:
 
-        pdb_fn = id + PDB_EXT
-        pdb_fp = os.path.join(self.data_dir, pdb_fn)
+        pdb_fp = self._find_file(id)
 
-        if os.path.exists(pdb_fp) and not replace:
-            return
+        if not os.path.exists(pdb_fp) or replace:
+            self._download_record(
+                os.path.join(PDB_URL, os.path.basename(pdb_fp)), pdb_fp
+            )
 
-        urllib.request.urlretrieve(os.path.join(PDB_URL, pdb_fn), pdb_fp)
+        pdb_struct = self._pdb_parser.get_structure(id, pdb_fp)
+
+        return PDBStructure(id, pdb_struct)
+
+    def _download_record(self, url: str, dest_fp: str):
+
+        urllib.request.urlretrieve(url, dest_fp)
 
         return
-
-    def find_file(self, id: str) -> str:
-
-        fp = os.path.join(self.data_dir, id + self.ext)
-
-        if not os.path.exists(fp):
-            raise FileNotFoundError
-
-        return fp
-
-    def load_record(self, id: str) -> Structure:
-
-        pdb_fp = os.path.join(self.data_dir, id + self.ext)
-
-        if not os.path.exists(pdb_fp):
-            raise FileNotFoundError
-
-        return self.parser.get_structure(id, pdb_fp)

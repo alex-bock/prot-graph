@@ -6,15 +6,13 @@ import numpy as np
 import pandas as pd
 from scipy.spatial.distance import squareform, pdist, euclidean
 
-from ..datasets.dataset import Dataset
-
 
 class Structure(abc.ABC):
 
-    def __init__(self, id: str, db: Dataset):
+    def __init__(self, id: str, struct: Any):
 
         self.id = id
-        self.struct = db.load_record(id)
+        self.struct = struct
 
         self.atom_df = self.add_atoms(self.struct)
 
