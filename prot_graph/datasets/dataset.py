@@ -20,8 +20,10 @@ class Dataset(abc.ABC):
             os.makedirs(data_dir)
 
         self.data_dir = data_dir
-        self.ext = None
-        self.metadata = pd.DataFrame()
+
+        self.metadata = pd.DataFrame(columns=["id"])
+        self.metadata.id = self.ids
+        self.metadata.set_index("id", inplace=True)
 
         return
 
@@ -47,10 +49,33 @@ class Dataset(abc.ABC):
 
         return glob.glob(os.path.join(self.data_dir, f"*{self.ext}"))
 
-    def __iter__(self) -> List[str]:
+    @property
+    def ids(self) -> List[str]:
 
         return [os.path.basename(fp).split(".")[0] for fp in self.fps]
 
     def __getitem__(self, idx: int) -> str:
 
-        return self.__iter__()[idx]
+        return self.ids[idx]
+
+    def load_metadata(self, df_fp: str):
+
+        src_df = pd.read_csv(df_fp).set_index("id")
+        self.metadata = self.metadata.join(src_df)
+
+        return
+
+    def filter_by_metadata(self, field: str, val: str):
+
+        if field == "ec":
+            df = self._filter_by_ec(val)
+        else:
+            df = self.metadata[self.metadata[field] == val]
+
+        return df.index.values
+
+    def _filter_by_ec(self, ec: str):
+
+        return self.metadata[
+            self.metadata.ec.apply(lambda x: ec in x)
+        ]

@@ -1,11 +1,11 @@
 
 import argparse
+import functools
 import glob
-from itertools import repeat
 import json
-from multiprocessing import Pool
 from pathlib import Path
 import time
+from tqdm.contrib.concurrent import process_map
 
 from pdbfixer import PDBFixer
 from openmm.app import PDBFile
@@ -26,7 +26,7 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def fix_pdb(pdb_fp: str, fix_args: argparse.Namespace, fix_fp: str):
+def fix_pdb(fix_args: argparse.Namespace, dest_dir: Path, pdb_fp: str):
 
     try:
 
@@ -45,6 +45,7 @@ def fix_pdb(pdb_fp: str, fix_args: argparse.Namespace, fix_fp: str):
         if fix_args.missing_h:
             fixer.addMissingHydrogens(pH=7.0)
 
+        fix_fp = dest_dir.joinpath(Path(pdb_fp).name)
         with open(fix_fp, "w") as f:
             PDBFile.writeFile(fixer.topology, fixer.positions, f)
 
@@ -73,11 +74,4 @@ if __name__ == "__main__":
         json.dump(vars(arguments), f)
 
     pdb_fps = glob.glob(str(src_dir.joinpath("*.pdb")))
-    Pool(processes=4).starmap(
-        fix_pdb,
-        zip(
-            pdb_fps,
-            repeat(arguments),
-            [dest_dir.joinpath(Path(pdb_fp).name) for pdb_fp in pdb_fps]
-        )
-    )
+    r = process_map(functools.partial(fix_pdb, arguments, dest_dir), pdb_fps)

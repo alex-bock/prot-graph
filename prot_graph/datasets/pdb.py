@@ -17,9 +17,9 @@ class PDB(Dataset):
 
     def __init__(self, pdb_dir: str = PDB_DIR):
 
+        self.ext = PDB_EXT
         super().__init__(data_dir=pdb_dir)
 
-        self.ext = PDB_EXT
         self._pdb_parser = PDBParser(QUIET=True)
 
         return

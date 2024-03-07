@@ -114,9 +114,7 @@ class ProtGraph(abc.ABC):
             self._plot_nodes(fig, color_by=color_node_by)
         self._draw_edges(fig)
 
-        fig.show()
-
-        return
+        return fig
 
     def _plot_nodes(self, fig: go.Figure, color_by: str = "type"):
 
