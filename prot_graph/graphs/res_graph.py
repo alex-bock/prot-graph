@@ -60,8 +60,6 @@ class ResGraph(ProtGraph):
             else:
                 skipped.append(res_id)
 
-        print(f"Added {len(resx)} residues ({len(skipped)} skipped)")
-
         return pd.DataFrame(resx).set_index("i"), np.array(res_pos_lst)
 
     def add_nodes(self, node_df: pd.DataFrame) -> nx.Graph:
@@ -106,7 +104,6 @@ class ResGraph(ProtGraph):
             self.graph.add_edge(u, v, type=DIST)
             distance_edges.append({"u": u, "v": v, "type": DIST})
 
-        print(f"Added {len(distance_edges)} distance edges")
         self.edge_df = pd.concat(
             [self.edge_df, pd.DataFrame(distance_edges)], ignore_index=True
         )
@@ -126,7 +123,6 @@ class ResGraph(ProtGraph):
             self.graph.add_edge(u, v, type=PEP)
             peptide_bonds.append({"u": u, "v": v, "type": PEP})
 
-        print(f"Added {len(peptide_bonds)} peptide bonds")
         self.edge_df = pd.concat(
             [self.edge_df, pd.DataFrame(peptide_bonds)], ignore_index=True
         )
@@ -150,7 +146,6 @@ class ResGraph(ProtGraph):
             self.graph.add_edge(u, v, type=HB)
             hydrogen_bonds.append({"u": u, "v": v, "type": HB})
 
-        print(f"Added {len(hydrogen_bonds)} hydrogen bonds")
         self.edge_df = pd.concat(
             [self.edge_df, pd.DataFrame(hydrogen_bonds)], ignore_index=True
         )
@@ -169,7 +164,6 @@ class ResGraph(ProtGraph):
             self.graph.add_edge(u, v, type=HP)
             hp_interactions.append({"u": u, "v": v, "type": HP})
 
-        print(f"Added {len(hp_interactions)} hydrophobic interactions")
         self.edge_df = pd.concat(
             [self.edge_df, pd.DataFrame(hp_interactions)], ignore_index=True
         )
@@ -192,7 +186,6 @@ class ResGraph(ProtGraph):
             self.graph.add_edge(u, v, type=IB)
             hp_interactions.append({"u": u, "v": v, "type": IB})
 
-        print(f"Added {len(hp_interactions)} ionic bonds")
         self.edge_df = pd.concat(
             [self.edge_df, pd.DataFrame(hp_interactions)], ignore_index=True
         )
@@ -218,7 +211,6 @@ class ResGraph(ProtGraph):
             self.graph.add_edge(u, v, type=SB)
             salt_bridges.append({"u": u, "v": v, "type": SB})
 
-        print(f"Added {len(salt_bridges)} salt bridges")
         self.edge_df = pd.concat(
             [self.edge_df, pd.DataFrame(salt_bridges)], ignore_index=True
         )
@@ -239,7 +231,6 @@ class ResGraph(ProtGraph):
             self.graph.add_edge(u, v, type=DB)
             disulfide_bridges.append({"u": u, "v": v, "type": DB})
 
-        print(f"Added {len(disulfide_bridges)} disulfide bridges")
         self.edge_df = pd.concat(
             [self.edge_df, pd.DataFrame(disulfide_bridges)], ignore_index=True
         )
