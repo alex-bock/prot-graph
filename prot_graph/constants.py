@@ -1,0 +1,28 @@
+
+ALA = "ALA"
+ARG = "ARG"
+ASN = "ASN"
+ASP = "ASP"
+CYS = "CYS"
+GLN = "GLN"
+GLU = "GLU"
+GLY = "GLY"
+HIS = "HIS"
+ILE = "ILE"
+LEU = "LEU"
+LYS = "LYS"
+MET = "MET"
+PHE = "PHE"
+PRO = "PRO"
+PYL = "PYL"
+SEC = "SEC"
+SER = "SER"
+THR = "THR"
+TRP = "TRP"
+TYR = "TYR"
+VAL = "VAL"
+
+AAS = [
+    ALA, ARG, ASN, ASP, CYS, GLN, GLU, GLY, HIS, ILE, LEU, LYS, MET, PHE, PRO,
+    PYL, SEC, SER, THR, TRP, TYR, VAL
+]
