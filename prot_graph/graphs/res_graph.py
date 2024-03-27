@@ -155,7 +155,8 @@ class ResGraph(ProtGraph):
 
     def add_hydrophobic_interactions(self, dist: float = 5.0, seq_gap: int = 3):
 
-        res_pairs = self.get_res_pairs(dist, types=HP_RES)
+        atom_pairs = self.struct.get_atom_pairs(dist, res_types=HP_RES)
+        res_pairs = self.get_res_pairs(atom_pairs)
         hp_interactions = list()
 
         for ((u, res_u), (v, res_v)) in res_pairs:
@@ -173,7 +174,10 @@ class ResGraph(ProtGraph):
 
     def add_ionic_bonds(self, dist: float = 6.0, seq_gap: int = 3):
 
-        res_pairs = self.get_res_pairs(dist, types=IB_POS_RES + IB_NEG_RES)
+        atom_pairs = self.struct.get_atom_pairs(
+            dist, res_types=IB_POS_RES + IB_NEG_RES
+        )
+        res_pairs = self.get_res_pairs(atom_pairs)
         hp_interactions = list()
 
         for ((u, res_u), (v, res_v)) in res_pairs:
@@ -195,10 +199,11 @@ class ResGraph(ProtGraph):
 
     def add_salt_bridges(self, dist: float = 4.0, seq_gap: int = 3):
 
-        res_pairs = self.get_res_pairs(
-            dist, types=SB_ANION_RES + SB_CATION_RES,
-            atom_types=SB_ANIONS + SB_CATIONS
+        atom_pairs = self.struct.get_atom_pairs(
+            dist, types=SB_ANIONS + SB_CATIONS,
+            res_types=SB_ANION_RES + SB_CATION_RES
         )
+        res_pairs = self.get_res_pairs(atom_pairs)
         salt_bridges = list()
 
         for ((u, res_u), (v, res_v)) in res_pairs:
@@ -220,9 +225,10 @@ class ResGraph(ProtGraph):
 
     def add_disulfide_bridges(self, dist: float = 2.2, seq_gap: int = 3):
 
-        res_pairs = self.get_res_pairs(
-            dist, types=DB_RES, atom_types=DB_ATOMS
+        atom_pairs = self.struct.get_atom_pairs(
+            dist, types=DB_ATOMS, res_types=DB_RES
         )
+        res_pairs = self.get_res_pairs(atom_pairs)
         disulfide_bridges = list()
 
         for ((u, res_u), (v, res_v)) in res_pairs:
