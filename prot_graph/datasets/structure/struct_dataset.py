@@ -6,13 +6,13 @@ from typing import List, Tuple
 
 import pandas as pd
 
-from ..structures.structure import Structure
+from ...structures.structure import Structure
 
 
 DATA_DIR = "./data"
 
 
-class Dataset(abc.ABC):
+class StructDataset(abc.ABC):
 
     def __init__(self, data_dir: str = DATA_DIR):
 

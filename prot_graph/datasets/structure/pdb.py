@@ -4,8 +4,8 @@ import urllib.request
 
 from Bio.PDB import PDBParser
 
-from .dataset import Dataset
-from ..structures import PDBStructure
+from .struct_dataset import StructDataset
+from ...structures import PDBStructure
 
 
 PDB_DIR = "./data/pdb/"
@@ -13,7 +13,7 @@ PDB_EXT = ".pdb"
 PDB_URL = "http://files.rcsb.org/download/"
 
 
-class PDB(Dataset):
+class PDBDataset(StructDataset):
 
     def __init__(self, pdb_dir: str = PDB_DIR):
 
