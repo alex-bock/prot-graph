@@ -15,10 +15,10 @@ PDB_URL = "http://files.rcsb.org/download/"
 
 class PDBDataset(StructDataset):
 
-    def __init__(self, pdb_dir: str = PDB_DIR):
+    def __init__(self, *args, **kwargs):
 
         self.ext = PDB_EXT
-        super().__init__(data_dir=pdb_dir)
+        super().__init__(*args, **kwargs)
 
         self._pdb_parser = PDBParser(QUIET=True)
 

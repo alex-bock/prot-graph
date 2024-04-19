@@ -1,2 +1,2 @@
 
-from .models import *
+from .prot_gcn import ProtGCN

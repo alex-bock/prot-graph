@@ -1,2 +1,2 @@
 
-from .pdb import PDBDataset
+from .pdb_dataset import PDBDataset

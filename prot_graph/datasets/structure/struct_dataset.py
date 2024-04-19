@@ -14,12 +14,15 @@ DATA_DIR = "./data"
 
 class StructDataset(abc.ABC):
 
-    def __init__(self, data_dir: str = DATA_DIR):
+    def __init__(self, data_dir: str = DATA_DIR, n: int = None):
 
         if not os.path.exists(data_dir):
             os.makedirs(data_dir)
 
         self.data_dir = data_dir
+        self.fps = glob.glob(os.path.join(self.data_dir, f"*{self.ext}"))
+        if n is not None:
+            self.fps = self.fps[:n]
 
         self.metadata = pd.DataFrame(columns=["id"])
         self.metadata.id = self.ids
@@ -43,11 +46,6 @@ class StructDataset(abc.ABC):
     def _download_record(self, url: str, dest_fp: str):
 
         raise NotImplementedError
-
-    @property
-    def fps(self) -> List[str]:
-
-        return glob.glob(os.path.join(self.data_dir, f"*{self.ext}"))
 
     @property
     def ids(self) -> List[str]:

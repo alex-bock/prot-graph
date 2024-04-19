@@ -1,0 +1,2 @@
+
+from .ec_classifier import EnzymeCommissionClassifier

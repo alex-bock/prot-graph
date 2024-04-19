@@ -26,7 +26,6 @@ class ResGraphDataset(TorchDataset):
         edge_types: Dict[str, Dict[str, Any]],
         node_features: Union[str, List[str]],
         label_field: str,
-        label_space: List[Any],
         flatten: bool = False,
         split_json: str = None
     ):
@@ -39,9 +38,6 @@ class ResGraphDataset(TorchDataset):
         self.struct_dataset = struct_dataset
         self.graphs = self._build_graphs(struct_dataset, edge_types)
         self.node_features = self._featurize_nodes(self.graphs, node_features)
-
-        if label_space is not None:
-            self.label_map = {label: i for i, label in enumerate(label_space)}
 
         self.labels = self._load_labels(
             struct_dataset, self.graphs, label_field
@@ -128,12 +124,7 @@ class ResGraphDataset(TorchDataset):
 
         ids = [graph.id for graph in graphs]
         metadata = struct_dataset.metadata.loc[ids]
-        labels = metadata[label_field].apply(
-            lambda x: literal_eval(x)[0] if isinstance(literal_eval(x), list) else x
-        )
-
-        if self.label_map is None:
-            self.label_map = {l: i for i, l in enumerate(labels.unique())}
+        labels = metadata[label_field].apply(literal_eval)
 
         return labels.values
 
@@ -151,7 +142,7 @@ class ResGraphDataset(TorchDataset):
             torch.from_numpy(graph.get_adj_matrix(flatten=self.flat))
         )
 
-        return Data(x.float(), edge_index=edge_index, y=self.label_map[label])
+        return Data(x.float(), edge_index=edge_index, y=label)
 
     @property
     def train(self) -> List[Data]:

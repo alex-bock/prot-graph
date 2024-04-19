@@ -92,14 +92,16 @@ class ResGraph(ProtGraph):
 
         return zip(res_us.iterrows(), res_vs.iterrows())
 
-    def add_distance_edges(self, dist: float = 8.0):
+    def add_distance_edges(self, dist: float = 8.0, seq_gap: int = 3):
 
         atom_pairs = self.struct.get_atom_pairs(dist)
         res_pairs = self.get_res_pairs(atom_pairs)
         distance_edges = list()
 
-        for ((u, _), (v, _)) in res_pairs:
+        for ((u, res_u), (v, res_v)) in res_pairs:
             if u == v:
+                continue
+            elif self.is_adjacent(res_u, res_v, seq_gap=seq_gap):
                 continue
             self.graph.add_edge(u, v, type=DIST)
             distance_edges.append({"u": u, "v": v, "type": DIST})
