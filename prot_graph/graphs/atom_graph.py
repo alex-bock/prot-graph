@@ -1,7 +1,6 @@
 
 from typing import Tuple
 
-import networkx as nx
 import numpy as np
 import pandas as pd
 
@@ -19,7 +18,6 @@ class AtomGraph(ProtGraph):
         super().__init__(struct=struct)
 
         self.node_df, self.node_pos_mat = self.get_nodes(self.struct)
-        self.graph = self.add_nodes(self.node_df)
 
         self.edge_df = pd.DataFrame(columns=["u", "v", "type"])
         self.edge_types = list()
@@ -35,15 +33,6 @@ class AtomGraph(ProtGraph):
 
         return atom_df, atom_pos_mat
 
-    def add_nodes(self, node_df: pd.DataFrame) -> nx.Graph:
-
-        atom_graph = nx.Graph()
-
-        for i, _ in node_df.iterrows():
-            atom_graph.add_node(i)
-
-        return atom_graph
-
     def is_adjacent(self, u: pd.Series, v: pd.Series, seq_gap: int = 0):
 
         return u.chain == v.chain and abs(u.chain_i - v.chain_i) < seq_gap + 1
@@ -56,7 +45,6 @@ class AtomGraph(ProtGraph):
         for ((u, _), (v, _)) in atom_pairs:
             if u == v:
                 continue
-            self.graph.add_edge(u, v, type=PEP)
             peptide_bonds.append({"u": u, "v": v, "type": PEP})
 
         print(f"Added {len(peptide_bonds)} peptide bonds")
@@ -77,7 +65,6 @@ class AtomGraph(ProtGraph):
         for ((u, atom_u), (v, atom_v)) in atom_pairs:
             if self.is_adjacent(atom_u, atom_v, seq_gap=seq_gap):
                 continue
-            self.graph.add_edge(u, v, type=HB)
             hydrogen_bonds.append({"u": u, "v": v, "type": HB})
 
         print(f"Added {len(hydrogen_bonds)} hydrogen bonds")

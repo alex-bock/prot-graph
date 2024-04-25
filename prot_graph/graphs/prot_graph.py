@@ -2,7 +2,6 @@
 import abc
 from typing import List, Tuple, Union
 
-import networkx as nx
 import numpy as np
 import pandas as pd
 
@@ -32,11 +31,6 @@ class ProtGraph(abc.ABC):
     def get_nodes(
         self, struct: Structure
     ) -> Tuple[pd.DataFrame, np.ndarray]:
-
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def add_nodes(self, node_df: pd.DataFrame) -> nx.Graph:
 
         raise NotImplementedError
 

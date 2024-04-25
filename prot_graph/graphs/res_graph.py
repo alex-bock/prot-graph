@@ -1,7 +1,6 @@
 
 from typing import List, Tuple
 
-import networkx as nx
 import numpy as np
 import pandas as pd
 
@@ -26,7 +25,6 @@ class ResGraph(ProtGraph):
         super().__init__(struct=struct)
 
         self.node_df, self.node_pos_mat = self.get_nodes(self.struct)
-        self.graph = self.add_nodes(self.node_df)
 
         self.edge_df = pd.DataFrame(columns=["u", "v", "type"])
         self.edge_types = list()
@@ -62,15 +60,6 @@ class ResGraph(ProtGraph):
 
         return pd.DataFrame(resx).set_index("i"), np.array(res_pos_lst)
 
-    def add_nodes(self, node_df: pd.DataFrame) -> nx.Graph:
-
-        res_graph = nx.MultiGraph()
-
-        for i, _ in node_df.iterrows():
-            res_graph.add_node(i)
-
-        return res_graph
-
     def is_adjacent(self, u: pd.Series, v: pd.Series, seq_gap: int = 0) -> bool:
 
         return u.chain == v.chain and abs(u.chain_i - v.chain_i) < seq_gap + 1
@@ -103,7 +92,6 @@ class ResGraph(ProtGraph):
                 continue
             elif self.is_adjacent(res_u, res_v, seq_gap=seq_gap):
                 continue
-            self.graph.add_edge(u, v, type=DIST)
             distance_edges.append({"u": u, "v": v, "type": DIST})
 
         self.edge_df = pd.concat(
@@ -122,7 +110,6 @@ class ResGraph(ProtGraph):
         for ((u, _), (v, _)) in res_pairs:
             if u == v:
                 continue
-            self.graph.add_edge(u, v, type=PEP)
             peptide_bonds.append({"u": u, "v": v, "type": PEP})
 
         self.edge_df = pd.concat(
@@ -145,7 +132,6 @@ class ResGraph(ProtGraph):
         for ((u, res_u), (v, res_v)) in res_pairs:
             if self.is_adjacent(res_u, res_v, seq_gap=seq_gap):
                 continue
-            self.graph.add_edge(u, v, type=HB)
             hydrogen_bonds.append({"u": u, "v": v, "type": HB})
 
         self.edge_df = pd.concat(
@@ -164,7 +150,6 @@ class ResGraph(ProtGraph):
         for ((u, res_u), (v, res_v)) in res_pairs:
             if self.is_adjacent(res_u, res_v, seq_gap=seq_gap):
                 continue
-            self.graph.add_edge(u, v, type=HP)
             hp_interactions.append({"u": u, "v": v, "type": HP})
 
         self.edge_df = pd.concat(
@@ -189,7 +174,6 @@ class ResGraph(ProtGraph):
                 res_u, res_v, IB_POS_RES, IB_NEG_RES
             ):
                 continue
-            self.graph.add_edge(u, v, type=IB)
             hp_interactions.append({"u": u, "v": v, "type": IB})
 
         self.edge_df = pd.concat(
@@ -215,7 +199,6 @@ class ResGraph(ProtGraph):
                 res_u, res_v, SB_ANION_RES, SB_CATION_RES
             ):
                 continue
-            self.graph.add_edge(u, v, type=SB)
             salt_bridges.append({"u": u, "v": v, "type": SB})
 
         self.edge_df = pd.concat(
@@ -236,7 +219,6 @@ class ResGraph(ProtGraph):
         for ((u, res_u), (v, res_v)) in res_pairs:
             if self.is_adjacent(res_u, res_v, seq_gap=seq_gap):
                 continue
-            self.graph.add_edge(u, v, type=DB)
             disulfide_bridges.append({"u": u, "v": v, "type": DB})
 
         self.edge_df = pd.concat(
