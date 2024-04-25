@@ -25,7 +25,7 @@ MODEL_DICT = {"ProtGCN": ProtGCN}
 
 if __name__ == "__main__":
 
-    struct_dataset = PDBDataset(sys.argv[1], n=600)
+    struct_dataset = PDBDataset(sys.argv[1])
     struct_dataset.load_metadata("./data/gearnet/ec.csv")
 
     with open(sys.argv[2], "r") as f:
