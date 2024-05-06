@@ -15,17 +15,17 @@ from torch import Tensor
 
 from prot_graph.datasets.structure import PDBDataset
 from prot_graph.datasets.graph import ResGraphDataset
-from prot_graph.models import ProtGCN
+from prot_graph.models import ProtGCN, ProtRGCN
 from prot_graph.tasks import EnzymeCommissionClassifier
 from prot_graph.metrics import f1_max
 
 
-MODEL_DICT = {"ProtGCN": ProtGCN}
+MODEL_DICT = {"ProtGCN": ProtGCN, "ProtRGCN": ProtRGCN}
 
 
 if __name__ == "__main__":
 
-    struct_dataset = PDBDataset(sys.argv[1])
+    struct_dataset = PDBDataset(sys.argv[1], n=10000)
     struct_dataset.load_metadata("./data/gearnet/ec.csv")
 
     with open(sys.argv[2], "r") as f:
@@ -54,12 +54,17 @@ if __name__ == "__main__":
     n_hidden = model_params["n_hidden"]
     d_hidden = model_params["d_hidden"]
 
-    gcn = ProtGCN(
+    model_name = params["model"]
+    model_kwargs = {}
+    if model_name == "ProtRGCN":
+        model_kwargs = {"n_relations": len(params["graph_params"]["edge_types"])}
+
+    model = MODEL_DICT[model_name](
         d_input=dataset.num_features, d_hidden=[d_hidden] * n_hidden,
-        concat_hidden=model_params["concat_hidden"]
+        concat_hidden=model_params["concat_hidden"], **model_kwargs
     )
 
-    classifier = EnzymeCommissionClassifier(model=gcn, n_mlp_layer=3)
+    classifier = EnzymeCommissionClassifier(model=model, n_mlp_layer=3)
     optimizer = AdamW(
         params=classifier.parameters(), **learning_params["optimizer"]
     )
@@ -76,7 +81,7 @@ if __name__ == "__main__":
             optimizer.step()
         print(f"Epoch {epoch}: " + str(torch.mean(Tensor(batch_losses))))
         if (epoch + 1) % learning_params["epoch_step"] == 0:
-            gcn.eval()
+            model.eval()
             y_hats = []
             ys = []
             for batch in valid_loader:
@@ -84,7 +89,7 @@ if __name__ == "__main__":
                 y_hats.append(y_hat)
                 ys.append(y)
             print(f1_max(torch.cat(y_hats), torch.cat(ys)))
-            gcn.eval()
+            model.eval()
             y_hats = []
             ys = []
             for batch in train_loader:

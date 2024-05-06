@@ -32,7 +32,9 @@ class EnzymeCommissionClassifier(Task):
 
     def forward(self, batch: Batch):
 
-        output = self.model(batch.x, batch.edge_index, batch=batch.batch)
+        output = self.model(
+            batch.x, batch.edge_index, batch.relations, batch=batch.batch
+        )
         y_hat = self.mlp(output)
 
         label_is = [

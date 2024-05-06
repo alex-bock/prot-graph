@@ -138,11 +138,17 @@ class ResGraphDataset(TorchDataset):
         graph = self.graphs[idx]
         label = self.labels[idx]
 
-        edge_index, _ = dense_to_sparse(
-            torch.from_numpy(graph.get_adj_matrix(flatten=self.flat))
-        )
+        if self.flat:
+            edge_index, _ = dense_to_sparse(
+                torch.from_numpy(graph.get_adj_matrix(flatten=True))
+            )
+            relations = torch.zeros(edge_index.shape[1])
+        else:
+            adj_matrix = graph.get_adj_matrix(flatten=False)
+            edge_index = torch.cat([dense_to_sparse(torch.from_numpy(adj_matrix[i]))[0] for i in range(adj_matrix.shape[0])], dim=1)
+            relations = torch.cat([i * torch.ones(adj_matrix[i].sum()) for i in range(adj_matrix.shape[0])])
 
-        return Data(x.float(), edge_index=edge_index, y=label)
+        return Data(x.float(), edge_index=edge_index, y=label, relations=relations)
 
     @property
     def train(self) -> List[Data]:

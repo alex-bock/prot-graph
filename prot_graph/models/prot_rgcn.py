@@ -9,7 +9,7 @@ from torch_geometric.nn import global_add_pool
 from ..layers import ProtGConv
 
 
-class ProtGCN(nn.Module):
+class ProtRGCN(nn.Module):
 
     """
     https://arxiv.org/pdf/1609.02907.pdf

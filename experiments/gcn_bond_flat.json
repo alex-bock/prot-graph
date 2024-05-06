@@ -14,7 +14,7 @@
         "classifier": {"n_mlp_layers": 3},
         "optimizer": {"lr": 1e-4, "weight_decay": 0},
         "batch_size": 20,
-        "n_epoch": 200,
+        "n_epoch": 20,
         "epoch_step": 4
     }
 }
