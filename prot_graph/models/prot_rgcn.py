@@ -20,7 +20,7 @@ class ProtRGCN(nn.Module):
         batch_norm=False, concat_hidden=False
     ):
 
-        super(ProtGCN, self).__init__()
+        super(ProtRGCN, self).__init__()
 
         if not isinstance(d_hidden, List):
             d_hidden = [d_hidden]
