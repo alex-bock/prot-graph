@@ -6,7 +6,8 @@ PEP_ATOMS = ["C", "N"]
 
 HB = "hbond"
 HB_ATOMS = [
-    "N", "ND", "NE", "NH", "NZ", "O", "OD1", "OD2", "OE", "OG", "OH"
+    "N", "ND1", "ND2", "NE", "NE1", "NE2", "NH1", "NH2", "NZ", "O", "OD1",
+    "OD2", "OE1", "OE2", "OG", "OG1", "OH"
 ]
 
 HP = "hp"
