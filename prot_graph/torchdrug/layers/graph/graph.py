@@ -1,11 +1,7 @@
 
-import math
-
 import torch
-from torch import nn
 
-from torchdrug import core, data
-from torchdrug.layers import functional
+from torchdrug import data
 from torchdrug.core import Registry as R
 from torchdrug.layers.geometry import GraphConstruction
 
@@ -46,7 +42,9 @@ class BondNetworkConstruction(GraphConstruction):
         num_edges = torch.tensor(num_edges, device=protein.device)
         num_relations = torch.tensor(num_relations, device=protein.device)
         num_relation = num_relations.sum()
-        offsets = (num_relations.cumsum(0) - num_relations).repeat_interleave(num_edges)
+        offsets = (
+            num_relations.cumsum(0) - num_relations
+        ).repeat_interleave(num_edges)
         edge_list[:, 2] += offsets
 
         # reorder edges into a valid PackedGraph
@@ -55,10 +53,16 @@ class BondNetworkConstruction(GraphConstruction):
         order = edge2graph.argsort()
         edge_list = edge_list[order]
         num_edges = edge2graph.bincount(minlength=res_graph.batch_size)
-        offsets = (res_graph.num_cum_nodes - res_graph.num_nodes).repeat_interleave(num_edges)
+        offsets = (
+            res_graph.num_cum_nodes - res_graph.num_nodes
+        ).repeat_interleave(num_edges)
 
         if hasattr(self, "edge_%s" % self.edge_feature):
-            edge_feature = getattr(self, "edge_%s" % self.edge_feature)(res_graph, edge_list, num_relation)
+            edge_feature = getattr(
+                self,
+                "edge_%s" % self.edge_feature
+            )(res_graph, edge_list, num_relation)
+
         elif self.edge_feature is None:
             edge_feature = None
         else:
@@ -71,9 +75,11 @@ class BondNetworkConstruction(GraphConstruction):
             data_dict["num_residues"] = res_graph.num_residues
         if isinstance(res_graph, data.PackedMolecule):
             data_dict["bond_type"] = torch.zeros_like(edge_list[:, 2])
-        return type(res_graph)(edge_list, num_nodes=res_graph.num_nodes, num_edges=num_edges, num_relation=num_relation,
-                           view=res_graph.view, offsets=offsets, edge_feature=edge_feature,
-                           meta_dict=meta_dict, **data_dict)
+        return type(res_graph)(
+            edge_list, num_nodes=res_graph.num_nodes, num_edges=num_edges,
+            num_relation=num_relation, view=res_graph.view, offsets=offsets,
+            edge_feature=edge_feature, meta_dict=meta_dict, **data_dict
+        )
 
     def to_res_edges(self, edges, protein):
 

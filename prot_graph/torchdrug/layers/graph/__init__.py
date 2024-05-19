@@ -1,3 +1,3 @@
 
-from .edge import *
-from .graph import *
+from .edge import HydrogenBondEdge, PeptideBondEdge, DisulfideBridgeEdge
+from .graph import BondNetworkConstruction

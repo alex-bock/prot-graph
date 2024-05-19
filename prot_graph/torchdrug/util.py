@@ -40,9 +40,11 @@ def create_working_directory(cfg):
     if world_size > 1 and not dist.is_initialized():
         comm.init_process_group("nccl", init_method="env://")
 
-    working_dir = os.path.join(os.path.expanduser(cfg.output_dir),
-                               cfg.task["class"], cfg.dataset["class"], cfg.task.model["class"],
-                               time.strftime("%Y-%m-%d-%H-%M-%S"))
+    working_dir = os.path.join(
+        os.path.expanduser(cfg.output_dir), cfg.task["class"],
+        cfg.dataset["class"], cfg.task.model["class"],
+        time.strftime("%Y-%m-%d-%H-%M-%S")
+    )
 
     # synchronize working directory
     if comm.get_rank() == 0:
@@ -82,8 +84,12 @@ def load_config(cfg_file, context=None):
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-c", "--config", help="yaml configuration file", required=True)
-    parser.add_argument("-s", "--seed", help="random seed for PyTorch", type=int, default=1024)
+    parser.add_argument(
+        "-c", "--config", help="yaml configuration file", required=True
+    )
+    parser.add_argument(
+        "-s", "--seed", help="random seed for PyTorch", type=int, default=1024
+    )
 
     args, unparsed = parser.parse_known_args()
     # get dynamic arguments defined in the config file
@@ -101,7 +107,10 @@ def build_downstream_solver(cfg, dataset):
     train_set, valid_set, test_set = dataset.split()
     if comm.get_rank() == 0:
         logger.warning(dataset)
-        logger.warning("#train: %d, #valid: %d, #test: %d" % (len(train_set), len(valid_set), len(test_set)))
+        logger.warning(
+            "#train: %d, #valid: %d, #test: %d"
+            % (len(train_set), len(valid_set), len(test_set))
+        )
 
     if cfg.task['class'] == 'MultipleBinaryClassification':
         cfg.task.task = [_ for _ in range(len(dataset.tasks))]
@@ -134,16 +143,27 @@ def build_downstream_solver(cfg, dataset):
 
     if "lr_ratio" in cfg:
         cfg.optimizer.params = [
-            {'params': solver.model.model.parameters(), 'lr': cfg.optimizer.lr * cfg.lr_ratio},
-            {'params': solver.model.mlp.parameters(), 'lr': cfg.optimizer.lr}
+            {
+                'params': solver.model.model.parameters(),
+                'lr': cfg.optimizer.lr * cfg.lr_ratio},
+            {
+                'params': solver.model.mlp.parameters(),
+                'lr': cfg.optimizer.lr
+            }
         ]
         optimizer = core.Configurable.load_config_dict(cfg.optimizer)
         solver.optimizer = optimizer
     elif "sequence_model_lr_ratio" in cfg:
         assert cfg.task.model["class"] == "FusionNetwork"
         cfg.optimizer.params = [
-            {'params': solver.model.model.sequence_model.parameters(), 'lr': cfg.optimizer.lr * cfg.sequence_model_lr_ratio},
-            {'params': solver.model.model.structure_model.parameters(), 'lr': cfg.optimizer.lr},
+            {
+                'params': solver.model.model.sequence_model.parameters(),
+                'lr': cfg.optimizer.lr * cfg.sequence_model_lr_ratio
+            },
+            {
+                'params': solver.model.model.structure_model.parameters(),
+                'lr': cfg.optimizer.lr
+            },
             {'params': solver.model.mlp.parameters(), 'lr': cfg.optimizer.lr}
         ]
         optimizer = core.Configurable.load_config_dict(cfg.optimizer)
@@ -163,7 +183,9 @@ def build_downstream_solver(cfg, dataset):
         if comm.get_rank() == 0:
             logger.warning("Load checkpoint from %s" % cfg.model_checkpoint)
         cfg.model_checkpoint = os.path.expanduser(cfg.model_checkpoint)
-        model_dict = torch.load(cfg.model_checkpoint, map_location=torch.device('cpu'))
+        model_dict = torch.load(
+            cfg.model_checkpoint, map_location=torch.device('cpu')
+        )
         task.model.load_state_dict(model_dict)
 
     return solver, scheduler
