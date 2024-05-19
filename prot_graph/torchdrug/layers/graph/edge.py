@@ -81,4 +81,33 @@ class PeptideBondEdge(nn.Module, core.Configurable):
 @R.register("layers.geometry.DisulfideBridgeEdge")
 class DisulfideBridgeEdge(nn.Module, core.Configurable):
 
-    pass
+    def __init__(
+        self, radius: float = 2.2, min_distance: int = 4,
+        max_distance: int = None
+    ):
+
+        super(DisulfideBridgeEdge, self).__init__()
+
+        self.radius = radius
+        self.min_distance = min_distance
+        self.max_distance = max_distance
+
+        self.spatial_edge_layer = SpatialEdge(
+            radius=radius, min_distance=min_distance, max_distance=max_distance
+        )
+
+        return
+
+    def forward(self, graph: data.Protein):
+
+        db_atom_ids = list(map(lambda x: graph.atom_name2id[x], DB_ATOMS))
+        is_db_atom = torch.isin(graph.atom_name, Tensor(db_atom_ids))
+        db_atom_is = is_db_atom.nonzero().squeeze()
+
+        edge_list, i = self.spatial_edge_layer(graph.subgraph(db_atom_is))
+
+        return torch.stack(
+            [db_atom_is[edge_list[:, 0]],
+             db_atom_is[edge_list[:, 1]],
+             edge_list[:, 2]]
+        ).t(), i

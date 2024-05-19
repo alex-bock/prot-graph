@@ -21,7 +21,7 @@ if __name__ == "__main__":
     print(protein)
 
     node_layer = AlphaCarbonNode()
-    edge_layers = [PeptideBondEdge(), HydrogenBondEdge()]
+    edge_layers = [PeptideBondEdge(), HydrogenBondEdge(), DisulfideBridgeEdge()]
     graph_constructor = BondNetworkConstruction(
         node_layers=[node_layer], edge_layers=edge_layers
     )
