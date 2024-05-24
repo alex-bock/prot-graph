@@ -134,12 +134,14 @@ def build_downstream_solver(cfg, dataset):
     solver = core.Engine(
         task, train_set, valid_set, test_set, optimizer, **cfg.engine
     )
-    engine_logger = core.WandbLogger(project="prot-graph")
-    solver.meter = core.Meter(
-        log_interval=cfg.engine.log_interval, silent=solver.rank > 0,
-        logger=engine_logger
-    )
-    solver.meter.log_config(task.config_dict())
+
+    if cfg.wandb:
+        engine_logger = core.WandbLogger(project="prot-graph")
+        solver.meter = core.Meter(
+            log_interval=cfg.engine.log_interval, silent=solver.rank > 0,
+            logger=engine_logger
+        )
+        solver.meter.log_config(task.config_dict())
 
     if "lr_ratio" in cfg:
         cfg.optimizer.params = [
