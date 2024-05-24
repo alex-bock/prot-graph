@@ -20,14 +20,20 @@ task:
     concat_hidden: True
     short_cut: True
     readout: 'sum'
-    num_relation: 2
+    num_relation: 7
   graph_construction_model:
-    class: BondNetworkConstruction
+    class: GraphConstruction
     node_layers:
       - class: AlphaCarbonNode
     edge_layers:
-      - class: PeptideBondEdge
-      - class: HydrogenBondEdge
+      - class: SequentialEdge
+        max_distance: 2
+      - class: SpatialEdge
+        radius: 10.0
+        min_distance: 5
+      - class: KNNEdge
+        k: 10
+        min_distance: 5
     edge_feature: gearnet
   criterion: bce
   num_mlp_layer: 3

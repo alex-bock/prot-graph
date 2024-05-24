@@ -2,7 +2,7 @@ output_dir: ~/scratch/protein_output
 
 dataset:
   class: EnzymeCommission
-  path: ~/scratch/protein-datasets/small/
+  path: ~/scratch/protein-datasets/
   test_cutoff: 0.95
   atom_feature: null
   bond_feature: null
@@ -13,7 +13,7 @@ dataset:
 task:
   class: MultipleBinaryClassification
   model:
-    class: RGCN
+    class: GearNet
     input_dim: 21
     hidden_dims: [512, 512, 512, 512, 512, 512]
     batch_norm: True
@@ -51,10 +51,12 @@ scheduler:
 
 engine:
   gpus: {{ gpus }}
-  batch_size: 2
+  batch_size: 8
   log_interval: 1000
 
 metric: f1_max
 
 train:
   num_epoch: 200
+
+wandb: {{ wandb }}
