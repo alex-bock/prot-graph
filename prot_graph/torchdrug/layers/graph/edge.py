@@ -1,8 +1,12 @@
 
+import networkx as nx
+import numpy as np
+
 import torch
 from torch import nn, Tensor
 
 from torchdrug import core, data
+from torchdrug.data import Graph
 from torchdrug.core import Registry as R
 from torchdrug.layers.geometry import SpatialEdge
 
@@ -111,3 +115,38 @@ class DisulfideBridgeEdge(nn.Module, core.Configurable):
              db_atom_is[edge_list[:, 1]],
              edge_list[:, 2]]
         ).t(), i
+
+
+@R.register("layers.geometry.MSTEdge")
+class MSTEdge(nn.Module, core.Configurable):
+
+    def __init__(self, base_edge_layer: nn.Module, p: float = 0.0, **mst_params):
+
+        super(MSTEdge, self).__init__()
+
+        self.base_edge_layer = base_edge_layer
+        self.p = p
+        self.mst_params = mst_params
+
+        return
+
+    def forward(self, graph: data.Protein):
+
+        base_graph_edge_list, i = self.base_edge_layer(graph)
+
+        if len(base_graph_edge_list) == 0:
+            return base_graph_edge_list, i
+
+        base_graph = nx.from_edgelist(base_graph_edge_list[:, :2].numpy())
+        mst = nx.minimum_spanning_tree(base_graph, **self.mst_params)
+        mst_edge_list = torch.cat([Tensor([[u, v] for (u, v) in mst.edges]), torch.zeros(len(mst.edges)).unsqueeze(dim=1)], dim=1).to(int)
+        mst_size = len(mst_edge_list) / len(base_graph_edge_list)
+        remainder_size = max(0.0, self.p - mst_size)
+
+        n_base_edges = len(base_graph.edges)
+        base_graph.remove_edges_from(mst.edges)
+        base_graph_edge_list = torch.cat([Tensor([[u, v] for (u, v) in base_graph.edges]), torch.zeros(len(base_graph.edges)).unsqueeze(dim=1)], dim=1).to(int)
+        remainder_edge_list = base_graph_edge_list[np.random.choice(len(base_graph_edge_list), size=min(len(base_graph_edge_list), int(n_base_edges * remainder_size)), replace=False)]
+        final_edge_list = torch.cat([mst_edge_list, remainder_edge_list])
+
+        return final_edge_list, i
