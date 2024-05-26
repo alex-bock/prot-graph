@@ -16,6 +16,8 @@ from ....graphs.constants import HB_ATOMS, PEP_ATOMS, DB_ATOMS
 @R.register("layers.geometry.HydrogenBondEdge")
 class HydrogenBondEdge(nn.Module, core.Configurable):
 
+    atom2res = True
+
     def __init__(
         self, radius: float = 3.5, min_distance: int = 4,
         max_distance: int = None
@@ -51,6 +53,8 @@ class HydrogenBondEdge(nn.Module, core.Configurable):
 @R.register("layers.geometry.PeptideBondEdge")
 class PeptideBondEdge(nn.Module, core.Configurable):
 
+    atom2res = True
+
     def __init__(
         self, radius: float = 1.5, min_distance: int = 1, max_distance: int = 1
     ):
@@ -84,6 +88,8 @@ class PeptideBondEdge(nn.Module, core.Configurable):
 
 @R.register("layers.geometry.DisulfideBridgeEdge")
 class DisulfideBridgeEdge(nn.Module, core.Configurable):
+
+    atom2res = True
 
     def __init__(
         self, radius: float = 2.2, min_distance: int = 4,
@@ -119,6 +125,8 @@ class DisulfideBridgeEdge(nn.Module, core.Configurable):
 
 @R.register("layers.geometry.MSTEdge")
 class MSTEdge(nn.Module, core.Configurable):
+
+    atom2res = False
 
     def __init__(self, base_edge_layer: nn.Module, p: float = 0.0, **mst_params):
 

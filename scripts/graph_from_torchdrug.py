@@ -25,32 +25,21 @@ if __name__ == "__main__":
     pdb_fp = sys.argv[1]
     pack = PackedProtein.from_pdb([pdb_fp])
     protein = pack[0]
-    print(protein)
 
     node_layer = AlphaCarbonNode()
 
-    for p in range(5):
-        edge_layers = [
-            MSTEdge(
-                base_edge_layer=SpatialEdge(radius=8, min_distance=0),
-                p=(p / 5)
-            )
-        ]
-        graph_constructor = GraphConstruction(
-            node_layers=[node_layer], edge_layers=edge_layers
-        )
-        protein = graph_constructor(pack)[0]
-        ProtGraph(protein).visualize(hide_nodes=True)
-
     for radius in range(5, 10):
         edge_layers = [
+            SpatialEdge(radius=radius, min_distance=0),
             MSTEdge(
                 base_edge_layer=SpatialEdge(radius=radius, min_distance=0),
                 p=0.0
-            )
+            ),
+            HydrogenBondEdge()
         ]
-        graph_constructor = GraphConstruction(
+        bond_net_constructor = BondNetworkConstruction(
             node_layers=[node_layer], edge_layers=edge_layers
         )
-        protein = graph_constructor(pack)[0]
-        ProtGraph(protein).visualize(hide_nodes=True)
+        bond_net = bond_net_constructor(pack)[0]
+        import pdb; pdb.set_trace()
+        ProtGraph(bond_net).visualize(hide_nodes=True)
