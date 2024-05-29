@@ -57,6 +57,6 @@ engine:
 metric: f1_max
 
 train:
-  num_epoch: 200
+  num_epoch: 100
 
 wandb: {{ wandb }}
