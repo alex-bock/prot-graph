@@ -145,9 +145,9 @@ class MSTEdge(nn.Module, core.Configurable):
         if len(base_graph_edge_list) == 0:
             return base_graph_edge_list, i
 
-        base_graph = nx.from_edgelist(base_graph_edge_list[:, :2].numpy())
+        base_graph = nx.from_edgelist(base_graph_edge_list[:, :2].cpu().numpy())
         mst = nx.minimum_spanning_tree(base_graph, **self.mst_params)
-        mst_edge_list = torch.cat([Tensor([[u, v] for (u, v) in mst.edges]), torch.zeros(len(mst.edges)).unsqueeze(dim=1)], dim=1).to(int)
+        mst_edge_list = torch.cat([Tensor([[u, v] for (u, v) in mst.edges]), torch.zeros(len(mst.edges)).unsqueeze(dim=1)], dim=1).to(graph.device).to(int)
         mst_size = len(mst_edge_list) / len(base_graph_edge_list)
         remainder_size = max(0.0, self.p - mst_size)
 
@@ -155,6 +155,10 @@ class MSTEdge(nn.Module, core.Configurable):
         base_graph.remove_edges_from(mst.edges)
         base_graph_edge_list = torch.cat([Tensor([[u, v] for (u, v) in base_graph.edges]), torch.zeros(len(base_graph.edges)).unsqueeze(dim=1)], dim=1).to(int)
         remainder_edge_list = base_graph_edge_list[np.random.choice(len(base_graph_edge_list), size=min(len(base_graph_edge_list), int(n_base_edges * remainder_size)), replace=False)]
-        final_edge_list = torch.cat([mst_edge_list, remainder_edge_list])
+        
+        if len(remainder_edge_list) == 0:
+            final_edge_list = mst_edge_list
+        else:
+            final_edge_list = torch.cat([mst_edge_list, remainder_edge_list])
 
         return final_edge_list, i
