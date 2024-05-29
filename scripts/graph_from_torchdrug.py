@@ -27,19 +27,11 @@ if __name__ == "__main__":
     protein = pack[0]
 
     node_layer = AlphaCarbonNode()
+    edge_layers = [SpatialEdge(radius=10)]
 
-    for radius in range(5, 10):
-        edge_layers = [
-            SpatialEdge(radius=radius, min_distance=0),
-            MSTEdge(
-                base_edge_layer=SpatialEdge(radius=radius, min_distance=0),
-                p=0.0
-            ),
-            HydrogenBondEdge()
-        ]
-        bond_net_constructor = BondNetworkConstruction(
+    for construction in [GraphConstruction, BondNetworkConstruction]:
+        constructor = construction(
             node_layers=[node_layer], edge_layers=edge_layers
         )
-        bond_net = bond_net_constructor(pack)[0]
-        import pdb; pdb.set_trace()
-        ProtGraph(bond_net).visualize(hide_nodes=True)
+        network = constructor(pack)[0]
+        ProtGraph(network).visualize(hide_nodes=True)
