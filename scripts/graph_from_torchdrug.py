@@ -27,9 +27,10 @@ if __name__ == "__main__":
     protein = pack[0]
 
     node_layer = AlphaCarbonNode()
-    edge_layers = [SpatialEdge(radius=10)]
+    edge_layers = [PeptideBondEdge(), SampleEdge(SpatialEdge(radius=10.0, min_distance=5))]
+    edge_layers = [SpatialEdge(radius=10.0, min_distance=5)]
 
-    for construction in [GraphConstruction, BondNetworkConstruction]:
+    for construction in [BondNetworkConstruction]:
         constructor = construction(
             node_layers=[node_layer], edge_layers=edge_layers
         )
