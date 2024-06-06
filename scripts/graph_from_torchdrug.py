@@ -4,20 +4,13 @@ import sys
 
 sys.path.append(os.getcwd())
 
-import networkx as nx
-
-import torch
-from torch import Tensor
-
-from torchdrug.data import PackedProtein, Graph
-from torchdrug.layers.geometry import AlphaCarbonNode, IdentityNode
-from torchdrug.layers.geometry import SpatialEdge
-from torchdrug.layers import GraphConstruction
+from torchdrug.data import PackedProtein
+from torchdrug.layers.geometry import AlphaCarbonNode
 
 from prot_graph.torchdrug.layers.graph.edge import *
 from prot_graph.torchdrug.layers.graph.graph import BondNetworkConstruction
 
-from prot_graph.graphs import ProtGraph
+from prot_graph.util import load_contacts, visualize
 
 
 if __name__ == "__main__":
@@ -26,12 +19,5 @@ if __name__ == "__main__":
     pack = PackedProtein.from_pdb([pdb_fp])
     protein = pack[0]
 
-    node_layer = AlphaCarbonNode()
-    edge_layers = [PeptideBondEdge(), SampleEdge(SpatialEdge(radius=10.0, min_distance=5))]
-
-    for construction in [BondNetworkConstruction]:
-        constructor = construction(
-            node_layers=[node_layer], edge_layers=edge_layers
-        )
-        bond_net = constructor(pack)[0]
-        ProtGraph(bond_net).visualize(hide_nodes=True)
+    protein = load_contacts(protein, "./data/sandbox/fixed/1708455578/6JXR.tsv")
+    visualize(protein, hide_nodes=True)
