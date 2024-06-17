@@ -19,5 +19,9 @@ if __name__ == "__main__":
     pack = PackedProtein.from_pdb([pdb_fp])
     protein = pack[0]
 
-    protein = load_contacts(protein, "./data/sandbox/fixed/1708455578/6JXR.tsv")
-    visualize(protein, hide_nodes=True)
+    contacts_fp = os.path.join(
+        os.path.split(pdb_fp)[0],
+        os.path.basename(pdb_fp).replace(".pdb", ".tsv")
+    )
+    protein = load_contacts(protein, contacts_fp)
+    visualize(protein, color_node_by="atom_name")

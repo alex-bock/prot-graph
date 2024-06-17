@@ -82,7 +82,7 @@ def plot_nodes(protein: Protein, fig: go.Figure, color_by: str = "residue_type")
     if color_by == "residue_type":
         vals = protein.residue_type[protein.atom2residue]
         val_name_dict = protein.id2residue
-    elif color_by == "atom_type":
+    elif color_by == "atom_name":
         vals = protein.atom_name
         atom_symbols = [
             protein.id2atom_name[val.item()][0] for val in vals
