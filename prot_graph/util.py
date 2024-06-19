@@ -11,6 +11,7 @@ from torchdrug.data import Protein
 
 
 CONTACT2ID = {"hb": 4, "sb": 5, "pc": 6, "ps": 7, "ts": 8, "hp": 9, "vdw": 10}
+ID2CONTACT = {v: k for k, v in CONTACT2ID.items()}
 
 
 def load_contacts(protein: Protein, contacts_fp: str):
@@ -23,29 +24,84 @@ def load_contacts(protein: Protein, contacts_fp: str):
     edge_list = protein.edge_list
     n_contacts = list()
     n_relations = list()
-    for type in contacts_df.type.unique():
-        df = contacts_df[contacts_df.type == type]
+
+    for contact_type in contacts_df.type.unique():
+
+        df = contacts_df[contacts_df.type == contact_type]
+
+        if contact_type.startswith("hb"):
+            contact_type = contact_type[:2]
+        elif contact_type.startswith("hp"):
+            contact_type = "vdw"
+        elif contact_type.startswith("vdw"):
+            contact_type = "hp"
+
         us, vs = [], []
+
         for _, row in df.iterrows():
+
             [chain_u, res_type_u, chain_u_i, atom_name_u] = row.u.split(":")
             [chain_v, res_type_v, chain_v_i, atom_name_v] = row.v.split(":")
-            res_u_i = int((protein.chain_id == protein.alphabet2id[chain_u]).nonzero()[int(chain_u_i) - 1])
-            res_v_i = int((protein.chain_id == protein.alphabet2id[chain_v]).nonzero()[int(chain_v_i) - 1])
-            assert(protein.id2residue[int(protein.residue_type[res_u_i])] == res_type_u)
-            assert(protein.id2residue[int(protein.residue_type[res_v_i])] == res_type_v)
-            res_u_atom_is = (protein.atom2residue == res_u_i).nonzero().squeeze()
-            res_v_atom_is = (protein.atom2residue == res_v_i).nonzero().squeeze()
+
+            res_u_i = int(
+                (
+                    protein.chain_id == protein.alphabet2id[chain_u]
+                ).nonzero()[int(chain_u_i) - 1]
+            )
+            res_v_i = int(
+                (
+                    protein.chain_id == protein.alphabet2id[chain_v]
+                ).nonzero()[int(chain_v_i) - 1]
+            )
+
+            assert protein.id2residue[
+                int(protein.residue_type[res_u_i])
+            ] == res_type_u
+            assert protein.id2residue[
+                int(protein.residue_type[res_v_i])
+            ] == res_type_v
+
+            res_u_atom_is = (
+                protein.atom2residue == res_u_i
+            ).nonzero().squeeze()
+            res_v_atom_is = (
+                protein.atom2residue == res_v_i
+            ).nonzero().squeeze()
+
             res_u_atom_names = protein.atom_name[res_u_atom_is]
             res_v_atom_names = protein.atom_name[res_v_atom_is]
-            atom_u_i = res_u_atom_is[res_u_atom_names == protein.atom_name2id[atom_name_u]][0]
-            atom_v_i = res_v_atom_is[res_v_atom_names == protein.atom_name2id[atom_name_v]][0]
-            assert(protein.id2atom_name[int(protein.atom_name[atom_u_i])] == atom_name_u)
-            assert(protein.id2atom_name[int(protein.atom_name[atom_v_i])] == atom_name_v)
+
+            atom_u_i = res_u_atom_is[
+                res_u_atom_names == protein.atom_name2id[atom_name_u]
+            ][0]
+            atom_v_i = res_v_atom_is[
+                res_v_atom_names == protein.atom_name2id[atom_name_v]
+            ][0]
+
+            assert protein.id2atom_name[
+                int(protein.atom_name[atom_u_i])
+            ] == atom_name_u
+            assert protein.id2atom_name[
+                int(protein.atom_name[atom_v_i])
+            ] == atom_name_v
+
             us.append(atom_u_i)
             vs.append(atom_v_i)
-        edge_list = torch.cat([edge_list, torch.stack([Tensor(us), Tensor(vs), torch.full((len(us), ), CONTACT2ID[type])]).t().int()])
+
+        edge_list = torch.cat(
+            [
+                edge_list,
+                torch.stack(
+                    [
+                        Tensor(us), Tensor(vs),
+                        torch.full((len(us), ), CONTACT2ID[contact_type])
+                    ]
+                ).t().int()
+            ]
+        )
+
         n_contacts.append(len(us))
-        n_relations.append(CONTACT2ID[type])
+        n_relations.append(CONTACT2ID[contact_type])
 
     return Protein(
         edge_list, atom_type=protein.atom_type, bond_type=edge_list[:, 2],
@@ -77,7 +133,10 @@ def visualize(
 
     return
 
-def plot_nodes(protein: Protein, fig: go.Figure, color_by: str = "residue_type"):
+
+def plot_nodes(
+    protein: Protein, fig: go.Figure, color_by: str = "residue_type"
+):
 
     if color_by == "residue_type":
         vals = protein.residue_type[protein.atom2residue]
@@ -121,11 +180,11 @@ def plot_nodes(protein: Protein, fig: go.Figure, color_by: str = "residue_type")
 
     return
 
+
 def draw_edges(protein: Protein, fig: go.Figure):
 
     relations = protein.edge_list[:, 2]
     relation_set = relations.unique()
-    import pdb; pdb.set_trace()
 
     for relation in relation_set:
         relation = relation.item()
@@ -152,7 +211,10 @@ def draw_edges(protein: Protein, fig: go.Figure):
                     ]).t().flatten(),
                 mode="lines",
                 opacity=0.5,
-                name={v: k for k, v in (protein.bond2id | CONTACT2ID).items()}[relation]
+                name=relation
+                # name={
+                #     v: k for k, v in (protein.bond2id | CONTACT2ID).items()
+                # }[relation]
             )
         )
 
