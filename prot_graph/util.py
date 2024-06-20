@@ -18,7 +18,7 @@ def load_contacts(protein: Protein, contacts_fp: str):
 
     contacts_df = pd.read_csv(
         contacts_fp, sep="\t", names=["frame", "type", "u", "v"],
-        skiprows=[0, 1]
+        skiprows=[0, 1], usecols=[0, 1, 2, 3]
     )
 
     edge_list = protein.edge_list
