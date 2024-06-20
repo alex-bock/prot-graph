@@ -65,6 +65,8 @@ if __name__ == "__main__":
 
     if arguments.dest_dir is None:
         dest_dir = src_dir.parent.joinpath("fixed")
+    else:
+        dest_dir = Path(arguments.dest_dir)
 
     dataset_tag = str(int(time.time()))
     dest_dir = dest_dir.joinpath(dataset_tag)
