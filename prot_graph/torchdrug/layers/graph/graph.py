@@ -99,5 +99,6 @@ class BondNetworkConstruction(GraphConstruction):
 
         res_graph, protein = self.apply_node_layer(protein)
         graph = self.apply_edge_layer(res_graph, protein)
+        graph.num_relation = len(self.edge_layers)
 
         return graph
