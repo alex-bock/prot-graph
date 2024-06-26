@@ -20,7 +20,7 @@ task:
     concat_hidden: True
     short_cut: True
     readout: 'sum'
-    num_relation: 2
+    num_relation: 8
   graph_construction_model:
     class: BondNetworkConstruction
     node_layers:
@@ -29,6 +29,18 @@ task:
       - class: PeptideBondEdge
       - class: GetContactsEdge
         contact_type: 'hb'
+      - class: GetContactsEdge
+        contact_type: 'sb'
+      - class: GetContactsEdge
+        contact_type: 'pc'
+      - class: GetContactsEdge
+        contact_type: 'ps'
+      - class: GetContactsEdge
+        contact_type: 'ts'
+      - class: GetContactsEdge
+        contact_type: 'vdw'
+      - class: GetContactsEdge
+        contact_type: 'hp'
     edge_feature: gearnet
   criterion: bce
   num_mlp_layer: 3
