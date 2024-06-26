@@ -148,7 +148,9 @@ class GetContactsEdge(nn.Module, core.Configurable):
         edge_list = torch.cat(
             (
                 edge_list[:, :2],
-                torch.zeros(len(edge_list)).t().unsqueeze(dim=1)
+                torch.zeros(
+                    len(edge_list), device=edge_list.device
+                ).t().unsqueeze(dim=1)
             ), dim=1
         ).long()
 
