@@ -4,6 +4,7 @@ import functools
 import glob
 import json
 from pathlib import Path
+from subprocess import Popen, PIPE
 import time
 from tqdm.contrib.concurrent import process_map
 
@@ -21,6 +22,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--rm_heterogens", action="store_true")
     parser.add_argument("--missing_atoms", action="store_true")
     parser.add_argument("--missing_h", action="store_true")
+    parser.add_argument("--prot", action="store_true")
     parser.add_argument("--dest_dir", type=str, default=None)
 
     return parser.parse_args()
@@ -51,9 +53,31 @@ def fix_pdb(fix_args: argparse.Namespace, dest_dir: Path, pdb_fp: str):
 
         print(f"Fixed {pdb_fp}")
 
+        if fix_args.prot:
+            protonate(fix_fp, fix_fp)
+
     except:
 
         print(f"Can't fix {pdb_fp}")
+
+    return
+
+
+def protonate(in_pdb_file: str, out_pdb_file: str):
+
+    args = ["reduce", "-Trim", in_pdb_file]
+    p2 = Popen(args, stdout=PIPE, stderr=PIPE)
+    stdout, _ = p2.communicate()
+    outfile = open(out_pdb_file, "w")
+    outfile.write(stdout.decode("utf-8").rstrip())
+    outfile.close()
+
+    args = ["reduce", "-HIS", out_pdb_file]
+    p2 = Popen(args, stdout=PIPE, stderr=PIPE)
+    stdout, _ = p2.communicate()
+    outfile = open(out_pdb_file, "w")
+    outfile.write(stdout.decode("utf-8"))
+    outfile.close()
 
     return
 
