@@ -27,9 +27,14 @@ if __name__ == "__main__":
     graph_constructor = BondNetworkConstruction(
         node_layers=[AlphaCarbonNode()],
         edge_layers=[
-            PeptideBondEdge(), GetContactsEdge("hb"), GetContactsEdge("sb"),
-            GetContactsEdge("hp"), GetContactsEdge("pc"),
-            GetContactsEdge("ts"), GetContactsEdge("ps"), GetContactsEdge("vdw")
+            PeptideBondEdge(),
+            GetContactsEdge("hb"),
+            GetContactsEdge("sb"),
+            GetContactsEdge("hp"),
+            GetContactsEdge("pc"),
+            GetContactsEdge("ts"),
+            GetContactsEdge("ps"),
+            GetContactsEdge("vdw")
         ]
     )
     graph_pack = graph_constructor(pack)
