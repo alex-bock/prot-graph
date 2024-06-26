@@ -2,7 +2,7 @@ output_dir: ~/scratch/protein_output
 
 dataset:
   class: EnzymeCommission
-  path: ~/scratch/protein-datasets/
+  path: ~/scratch/protein-datasets/fixed/
   test_cutoff: 0.95
   atom_feature: null
   bond_feature: null
@@ -27,7 +27,8 @@ task:
       - class: AlphaCarbonNode
     edge_layers:
       - class: PeptideBondEdge
-      - class: HydrogenBondEdge
+      - class: GetContactsEdge
+        contact_type: 'hb'
     edge_feature: gearnet
   criterion: bce
   num_mlp_layer: 3

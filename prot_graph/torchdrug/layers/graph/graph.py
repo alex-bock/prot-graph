@@ -78,6 +78,7 @@ class BondNetworkConstruction(GraphConstruction):
             data_dict["num_residues"] = res_graph.num_residues
         if isinstance(res_graph, data.PackedMolecule):
             data_dict["bond_type"] = torch.zeros_like(edge_list[:, 2])
+
         return type(res_graph)(
             edge_list, num_nodes=res_graph.num_nodes, num_edges=num_edges,
             num_relation=num_relation, view=res_graph.view, offsets=offsets,
@@ -98,5 +99,6 @@ class BondNetworkConstruction(GraphConstruction):
 
         res_graph, protein = self.apply_node_layer(protein)
         graph = self.apply_edge_layer(res_graph, protein)
+        graph.num_relation = len(self.edge_layers)
 
         return graph
