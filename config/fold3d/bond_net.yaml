@@ -9,7 +9,10 @@ dataset:
     view: residue
 
 task:
-  class: MultipleBinaryClassification
+  class: PropertyPrediction
+  num_mlp_layer: 3
+  mlp_batch_norm: True
+  mlp_dropout: 0.5
   model:
     class: RGCN
     input_dim: 21
@@ -45,21 +48,24 @@ task:
   metric: ['auprc@micro', 'f1_max']
 
 optimizer:
-  class: AdamW
-  lr: 1.0e-4
-  weight_decay: 0
+  class: SGD
+  lr: 1.0e-3
+  weight_decay: 5.0e-4
+  momentum: 0.98
 
 scheduler:
-  class: ReduceLROnPlateau
-  factor: 0.6
-  patience: 5
+  class: StepLR
+  step_size: 50
+  gamma: 0.5
 
 engine:
   gpus: {{ gpus }}
   batch_size: 8
   log_interval: 1000
 
-metric: f1_max
+model_checkpoint: {{ ckpt }}
+
+metric: accuracy [fold_label]
 
 train:
   num_epoch: 100
