@@ -1,12 +1,14 @@
 
+from typing import Tuple
+
 import networkx as nx
 import numpy as np
 
 import torch
 from torch import nn, Tensor
 
-from torchdrug import core, data
-from torchdrug.core import Registry as R
+from torchdrug.core import Configurable, Registry as R
+from torchdrug.data import Protein
 from torchdrug.layers.geometry import SpatialEdge
 
 from ....graphs.constants import HB_ATOMS, PEP_ATOMS, DB_ATOMS
@@ -14,7 +16,7 @@ from ....util import CONTACT2ID
 
 
 @R.register("layers.geometry.HydrogenBondEdge")
-class HydrogenBondEdge(nn.Module, core.Configurable):
+class HydrogenBondEdge(nn.Module, Configurable):
 
     atom2res = True
 
@@ -35,7 +37,7 @@ class HydrogenBondEdge(nn.Module, core.Configurable):
 
         return
 
-    def forward(self, graph: data.Protein):
+    def forward(self, graph: Protein) -> Tuple[torch.Tensor, int]:
 
         hb_atom_ids = list(map(lambda x: graph.atom_name2id[x], HB_ATOMS))
         is_hb_atom = torch.isin(
@@ -53,7 +55,7 @@ class HydrogenBondEdge(nn.Module, core.Configurable):
 
 
 @R.register("layers.geometry.PeptideBondEdge")
-class PeptideBondEdge(nn.Module, core.Configurable):
+class PeptideBondEdge(nn.Module, Configurable):
 
     atom2res = True
 
@@ -73,7 +75,7 @@ class PeptideBondEdge(nn.Module, core.Configurable):
 
         return
 
-    def forward(self, graph: data.Protein):
+    def forward(self, graph: Protein) -> Tuple[torch.Tensor, int]:
 
         pep_atom_ids = list(map(lambda x: graph.atom_name2id[x], PEP_ATOMS))
         is_pep_atom = torch.isin(
@@ -91,7 +93,7 @@ class PeptideBondEdge(nn.Module, core.Configurable):
 
 
 @R.register("layers.geometry.DisulfideBridgeEdge")
-class DisulfideBridgeEdge(nn.Module, core.Configurable):
+class DisulfideBridgeEdge(nn.Module, Configurable):
 
     atom2res = True
 
@@ -112,7 +114,7 @@ class DisulfideBridgeEdge(nn.Module, core.Configurable):
 
         return
 
-    def forward(self, graph: data.Protein):
+    def forward(self, graph: Protein) -> Tuple[torch.Tensor, int]:
 
         db_atom_ids = list(map(lambda x: graph.atom_name2id[x], DB_ATOMS))
         is_db_atom = torch.isin(
@@ -130,7 +132,7 @@ class DisulfideBridgeEdge(nn.Module, core.Configurable):
 
 
 @R.register("layers.geometry.GetContactsEdge")
-class GetContactsEdge(nn.Module, core.Configurable):
+class GetContactsEdge(nn.Module, Configurable):
 
     atom2res = True
 
@@ -142,7 +144,7 @@ class GetContactsEdge(nn.Module, core.Configurable):
 
         return
 
-    def forward(self, graph: data.Protein):
+    def forward(self, graph: Protein) -> Tuple[torch.Tensor, int]:
 
         edge_list = graph.edge_list[graph.edge_list[:, 2] == self.contact_type]
         edge_list = torch.cat(
@@ -157,8 +159,41 @@ class GetContactsEdge(nn.Module, core.Configurable):
         return edge_list, 1
 
 
+@R.register("layers.geometry.CompleteEdge")
+class CompleteEdge(nn.Module, Configurable):
+
+    atom2res = False
+
+    def __init__(self):
+
+        super(CompleteEdge, self).__init__()
+
+        return
+
+    def forward(self, graph: Protein) -> Tuple[torch.Tensor, int]:
+
+        node_is = torch.arange(len(graph.residue2graph))
+        pairs = torch.cat(
+            [
+                torch.combinations(node_is[graph.residue2graph == i])
+                for i in torch.unique(graph.residue2graph)
+            ]
+        )
+        pairs = torch.cat((pairs, torch.flip(pairs, dims=[1])))
+
+        return torch.cat(
+            (
+                pairs,
+                torch.zeros(
+                    len(pairs), device=pairs.device
+                ).t().unsqueeze(dim=1)
+            ), dim=1
+        ).long(), 1
+
+
+# TODO: Batch this to avoid bad cross-graph edges
 @R.register("layers.geometry.MSTEdge")
-class MSTEdge(nn.Module, core.Configurable):
+class MSTEdge(nn.Module, Configurable):
 
     atom2res = False
 
@@ -174,7 +209,7 @@ class MSTEdge(nn.Module, core.Configurable):
 
         return
 
-    def forward(self, graph: data.Protein):
+    def forward(self, graph: Protein) -> Tuple[torch.Tensor, int]:
 
         base_graph_edge_list, i = self.base_edge_layer(graph)
 
@@ -219,8 +254,9 @@ class MSTEdge(nn.Module, core.Configurable):
         return final_edge_list, i
 
 
+# TODO: Batch this to avoid bad cross-graph edges
 @R.register("layers.geometry.SampleEdge")
-class SampleEdge(nn.Module, core.Configurable):
+class SampleEdge(nn.Module, Configurable):
 
     atom2res = False
 
@@ -234,7 +270,7 @@ class SampleEdge(nn.Module, core.Configurable):
 
         return
 
-    def forward(self, graph: data.Protein):
+    def forward(self, graph: Protein) -> Tuple[torch.Tensor, int]:
 
         base_graph_edge_list, i = self.base_edge_layer(graph)
         n_base_edges = len(base_graph_edge_list)
