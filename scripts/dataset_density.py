@@ -18,23 +18,30 @@ from prot_graph.torchdrug.layers.graph.edge import *
 from prot_graph.torchdrug.layers.graph.graph import BondNetworkConstruction
 
 
-baseline_edges = [
-    CompleteEdge(), SampleEdge(CompleteEdge(), fn=lambda n: math.sqrt(n)),
+layers = [
+    CompleteEdge(),
     SampleEdge(CompleteEdge(), fn=lambda n: math.sqrt(n), p=3.2),
-    SpatialEdge(radius=10.0, min_distance=0, max_num_neighbors=int(1e10))
+    SpatialEdge(radius=10.0, min_distance=0, max_num_neighbors=int(1e10)),
+    PeptideBondEdge(),
+    GetContactsEdge("hb"),
+    GetContactsEdge("hp"),
+    GetContactsEdge("vdw"),
+    GetContactsEdge("sb"),
+    GetContactsEdge("pc"),
+    GetContactsEdge("ps"),
+    GetContactsEdge("ts")
 ]
-baseline_edge_names = [
-    "Complete", "Complete (root(n))", "Complete (h-bond approx.)",
-    f"Spatial ({10.0} Å)"
-]
-topline_edges = [
-    PeptideBondEdge(), GetContactsEdge("hb"), GetContactsEdge("hp"),
-    GetContactsEdge("vdw"), GetContactsEdge("sb"), GetContactsEdge("pc"),
-    GetContactsEdge("ps"), GetContactsEdge("ts")
-]
-topline_edge_names = [
-    "Peptide bonds", "Hydrogen bonds", "Hydrophobic interactions",
-    "Van der Waals forces", "Salt bridges", "π-cation bonds", "π-stacking",
+layer_names = [
+    "Complete",
+    "Complete (h-bond approx.)",
+    "Spatial (r=10 Å)",
+    "Peptide bonds",
+    "Hydrogen bonds",
+    "Hydrophobic interactions",
+    "Van der Waals forces",
+    "Salt bridges",
+    "π-cation bonds",
+    "π-stacking",
     "t-stacking"
 ]
 
@@ -42,16 +49,14 @@ topline_edge_names = [
 def count_edges(protein: Protein):
 
     constructor = BondNetworkConstruction(
-        node_layers=[AlphaCarbonNode()],
-        edge_layers=baseline_edges + topline_edges
+        node_layers=[AlphaCarbonNode()], edge_layers=layers
     )
     graph = constructor(Protein.pack([protein]))[0]
     n_nodes = len(graph.node2graph)
     edge_types = graph.edge_list[:, 2]
 
     return [n_nodes] + [
-        len(edge_types[edge_types == i])
-        for i in range(len(baseline_edges) + len(topline_edges))
+        len(edge_types[edge_types == i]) for i in range(len(layers))
     ]
 
 
@@ -64,19 +69,33 @@ if __name__ == "__main__":
 
     X = Tensor(
         process_map(count_edges, [protein["graph"] for protein in dataset])
-    )
+    ).to(int)
+    print(X)
 
-    fig = go.Figure()
-    x = X[:, 0].to(int)
-    for i in range(len(baseline_edges) + len(topline_edges)):
-        fig.add_trace(
+    scatter_plot = go.Figure()
+    x = X[:, 0]
+    for i in range(len(layers)):
+        scatter_plot.add_trace(
             go.Scatter(
-                x=x, y=X[:, i + 1], mode="markers",
-                name=(baseline_edge_names + topline_edge_names)[i]
+                x=x, y=X[:, i + 1], mode="markers", name=(layer_names)[i]
             )
         )
-    fig.update_layout(
+    scatter_plot.update_layout(
         title="Edge count by number of residues", xaxis_title="# residues",
         yaxis_title="# edges"
     )
-    fig.show()
+    scatter_plot.show()
+
+    histogram = go.Figure()
+    for i in range(len(layers)):
+        histogram.add_trace(
+            go.Histogram(
+                x=X[:, i + 1], name=layer_names[i], xbins=dict(size=50)
+            )
+        )
+
+    histogram.add_trace(
+        go.Histogram(x=X[:, 0], name="Residue count", xbins=dict(size=50))
+    )
+    histogram.update_layout(title="Edge count distribution", barmode="stack")
+    histogram.show()
