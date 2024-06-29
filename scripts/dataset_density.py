@@ -5,6 +5,7 @@ from tqdm.contrib.concurrent import process_map
 
 sys.path.append(os.getcwd())
 
+import math
 import plotly.graph_objects as go
 from torch import Tensor
 
@@ -18,10 +19,14 @@ from prot_graph.torchdrug.layers.graph.graph import BondNetworkConstruction
 
 
 baseline_edges = [
-    CompleteEdge(), SampleEdge(CompleteEdge(), p=0.1),
+    CompleteEdge(), SampleEdge(CompleteEdge(), fn=lambda n: math.sqrt(n)),
+    SampleEdge(CompleteEdge(), fn=lambda n: math.sqrt(n), p=3.2),
     SpatialEdge(radius=10.0, min_distance=0, max_num_neighbors=int(1e10))
 ]
-baseline_edge_names = ["Complete", "Complete (10%)", f"Spatial ({10.0} Å)"]
+baseline_edge_names = [
+    "Complete", "Complete (root(n))", "Complete (h-bond approx.)",
+    f"Spatial ({10.0} Å)"
+]
 topline_edges = [
     PeptideBondEdge(), GetContactsEdge("hb"), GetContactsEdge("hp"),
     GetContactsEdge("vdw"), GetContactsEdge("sb"), GetContactsEdge("pc"),
@@ -60,7 +65,6 @@ if __name__ == "__main__":
     X = Tensor(
         process_map(count_edges, [protein["graph"] for protein in dataset])
     )
-    print(X)
 
     fig = go.Figure()
     x = X[:, 0].to(int)
@@ -74,20 +78,5 @@ if __name__ == "__main__":
     fig.update_layout(
         title="Edge count by number of residues", xaxis_title="# residues",
         yaxis_title="# edges"
-    )
-    fig.show()
-
-    fig = go.Figure()
-    x = X[:, 0].to(int)
-    for i in range(len(baseline_edges) + len(topline_edges)):
-        fig.add_trace(
-            go.Scatter(
-                x=x, y=X[:, i + 1] / x, mode="markers",
-                name=(baseline_edge_names + topline_edge_names)[i]
-            )
-        )
-    fig.update_layout(
-        title="Edge count by number of residues (normalized)",
-        xaxis_title="# residues", yaxis_title="# edges (norm. by # residues)"
     )
     fig.show()
