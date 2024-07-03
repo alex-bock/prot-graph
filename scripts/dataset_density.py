@@ -12,15 +12,18 @@ from torch import Tensor
 from torchdrug.data import Protein
 from torchdrug.datasets import EnzymeCommission
 from torchdrug.transforms import ProteinView
-from torchdrug.layers.geometry import *
+from torchdrug.layers.geometry import AlphaCarbonNode
+from torchdrug.layers.geometry import SpatialEdge
 
-from prot_graph.torchdrug.layers.graph.edge import *
+from prot_graph.torchdrug.layers.graph.edge import (
+    CompleteEdge, SampleEdge, PeptideBondEdge, GetContactsEdge
+)
 from prot_graph.torchdrug.layers.graph.graph import BondNetworkConstruction
 
 
 layers = [
     CompleteEdge(),
-    SampleEdge(CompleteEdge(), fn=lambda n: math.sqrt(n), p=3.2),
+    SampleEdge(CompleteEdge(), fn=lambda n: math.sqrt(n), p=6.8),
     SpatialEdge(radius=10.0, min_distance=0, max_num_neighbors=int(1e10)),
     PeptideBondEdge(),
     GetContactsEdge("hb"),

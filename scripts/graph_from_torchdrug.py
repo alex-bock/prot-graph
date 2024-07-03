@@ -4,10 +4,15 @@ import sys
 
 sys.path.append(os.getcwd())
 
+import math
+
 from torchdrug.data import Protein, PackedProtein
 from torchdrug.layers.geometry import AlphaCarbonNode
+from torchdrug.layers.geometry import SpatialEdge
 
-from prot_graph.torchdrug.layers.graph.edge import *
+from prot_graph.torchdrug.layers.graph.edge import (
+    PeptideBondEdge, GetContactsEdge, CompleteEdge, SampleEdge
+)
 from prot_graph.torchdrug.layers.graph.graph import BondNetworkConstruction
 
 from prot_graph.util import load_contacts, visualize
@@ -27,16 +32,20 @@ if __name__ == "__main__":
     graph_constructor = BondNetworkConstruction(
         node_layers=[AlphaCarbonNode()],
         edge_layers=[
+            SpatialEdge(
+                radius=10.0, min_distance=0, max_num_neighbors=int(1e10)
+            ),
             PeptideBondEdge(),
+            SampleEdge(CompleteEdge(), fn=lambda n: math.sqrt(n), p=18.5),
             GetContactsEdge("hb"),
-            GetContactsEdge("sb"),
             GetContactsEdge("hp"),
+            GetContactsEdge("vdw"),
+            GetContactsEdge("sb"),
             GetContactsEdge("pc"),
-            GetContactsEdge("ts"),
             GetContactsEdge("ps"),
-            GetContactsEdge("vdw")
+            GetContactsEdge("ts")
         ]
     )
     graph_pack = graph_constructor(pack)
     graph = graph_pack[0]
-    visualize(graph)
+    visualize(graph, hide_nodes=True)
