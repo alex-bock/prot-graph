@@ -34,7 +34,6 @@ class BondNetworkConstruction(GraphConstruction):
         for layer in self.edge_layers:
             if hasattr(layer, "atom2res") and layer.atom2res:
                 edges, n_relation = layer(protein)
-                edges = self.to_res_edges(edges, protein)
             else:
                 edges, n_relation = layer(res_graph)
             edge_list.append(edges)
