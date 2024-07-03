@@ -1,7 +1,6 @@
 
 from typing import Tuple
 
-import networkx as nx
 import numpy as np
 
 import torch

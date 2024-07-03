@@ -11,9 +11,12 @@ from torch import Tensor
 from torchdrug.data import Protein
 from torchdrug.datasets import EnzymeCommission
 from torchdrug.transforms import ProteinView
-from torchdrug.layers.geometry import *
+from torchdrug.layers.geometry import AlphaCarbonNode
+from torchdrug.layers.geometry import SpatialEdge
 
-from prot_graph.torchdrug.layers.graph.edge import *
+from prot_graph.torchdrug.layers.graph.edge import (
+    CompleteEdge, PeptideBondEdge, GetContactsEdge
+)
 from prot_graph.torchdrug.layers.graph.graph import BondNetworkConstruction
 
 

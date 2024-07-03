@@ -5,7 +5,7 @@ clean:
 	rm .coverage
 
 lint:
-	flake8 ./prot_graph/
+	flake8 ./prot_graph/ ./scripts/
 
 test:
 	coverage run --source ./prot_graph/ -m --omit="*/tests/*" pytest ./tests/ && coverage report -m
