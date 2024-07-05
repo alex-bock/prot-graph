@@ -11,7 +11,8 @@ from torchdrug.layers.geometry import AlphaCarbonNode
 from torchdrug.layers.geometry import SpatialEdge
 
 from prot_graph.torchdrug.layers.graph.edge import (
-    PeptideBondEdge, GetContactsEdge, CompleteEdge, SampleEdge
+    PeptideBondEdge, GetContactsEdge, CompleteEdge, SampleEdge,
+    GaussianDistanceSampleEdge
 )
 from prot_graph.torchdrug.layers.graph.graph import BondNetworkConstruction
 
@@ -32,6 +33,9 @@ if __name__ == "__main__":
     graph_constructor = BondNetworkConstruction(
         node_layers=[AlphaCarbonNode()],
         edge_layers=[
+            GaussianDistanceSampleEdge(
+                m=10.0, is_half=True, fn=lambda n: math.sqrt(n), p=10.0
+            ),
             SpatialEdge(
                 radius=10.0, min_distance=0, max_num_neighbors=int(1e10)
             ),

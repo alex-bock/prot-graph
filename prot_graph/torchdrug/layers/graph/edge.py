@@ -2,6 +2,7 @@
 from typing import Callable, Tuple
 
 import numpy as np
+from scipy.stats import norm, halfnorm
 
 import torch
 from torch import nn, Tensor
@@ -143,19 +144,7 @@ class SampleEdge(nn.Module, Configurable):
 
         base_graph_edge_list, i = self.base_edge_layer(graph)
 
-        base_graph_edge_list_unique_idx = (
-            base_graph_edge_list[:, 0] < base_graph_edge_list[:, 1]
-        ).nonzero().squeeze()
-        base_graph_edge_list_unique = base_graph_edge_list[
-            base_graph_edge_list_unique_idx
-        ]
-        n_base_edges = len(base_graph_edge_list_unique)
-
-        sample_size = min(int(self.fn(n_base_edges)), n_base_edges)
-        sample_idx = self.sampler.choice(
-            n_base_edges, size=sample_size, replace=False
-        )
-        edge_list = base_graph_edge_list[sample_idx]
+        edge_list = self.sample(base_graph_edge_list)
         edge_list = add_reverse_edges(edge_list)
 
         return torch.cat(
@@ -166,6 +155,73 @@ class SampleEdge(nn.Module, Configurable):
                 ).t().unsqueeze(dim=1)
             ), dim=1
         ).long(), i
+
+    def sample(
+        self, base_graph_edge_list: Tensor, weights: Tensor = None
+    ) -> Tensor:
+
+        if weights is None:
+            weights = torch.ones(len(base_graph_edge_list))
+
+        base_graph_edge_list_unique_idx = (
+            base_graph_edge_list[:, 0] < base_graph_edge_list[:, 1]
+        ).nonzero().squeeze()
+        base_graph_edge_list_unique = base_graph_edge_list[
+            base_graph_edge_list_unique_idx
+        ]
+        n_base_edges = len(base_graph_edge_list_unique)
+
+        weights = weights[base_graph_edge_list_unique_idx]
+        weights /= weights.sum()
+
+        sample_size = min(int(self.fn(n_base_edges)), n_base_edges)
+        sample_idx = self.sampler.choice(
+            n_base_edges, size=sample_size, replace=False, p=np.array(weights)
+        )
+        edge_list = base_graph_edge_list[sample_idx]
+
+        return edge_list
+
+
+@R.register("layers.geometry.GaussianDistanceSampleEdge")
+class GaussianDistanceSampleEdge(SampleEdge):
+
+    def __init__(
+        self, m: float, s: float = 1.0, is_half: bool = True, p: float = 1.0,
+        fn: Callable = None
+    ):
+
+        super().__init__(base_edge_layer=CompleteEdge(), p=p, fn=fn)
+
+        self.m = m
+        self.s = s
+
+        if is_half:
+            self.model = halfnorm
+        else:
+            self.model = norm
+
+    def forward(self, graph: Protein) -> Tuple[Tensor, int]:
+
+        base_graph_edge_list, i = self.base_edge_layer(graph)
+
+        distances = get_edge_distances(base_graph_edge_list, graph)
+        weights = self.model.pdf(distances, loc=self.m, scale=self.s)
+
+        edge_list = self.sample(base_graph_edge_list, weights=weights)
+        edge_list = add_reverse_edges(edge_list)
+
+        return torch.cat(
+            (
+                edge_list[:, :2],
+                torch.zeros(
+                    len(edge_list), device=edge_list.device
+                ).t().unsqueeze(dim=1)
+            ), dim=1
+        ).long(), i
+
+
+# ---------------------------- utility functions -------------------------------
 
 
 def to_res_edges(edge_list: Tensor, protein: Protein) -> Tensor:
@@ -206,7 +262,14 @@ def add_reverse_edges(edge_list: Tensor) -> Tensor:
     )
 
 
-# ---------------------------------- OBSOLETE ----------------------------------
+def get_edge_distances(edge_list: Tensor, graph: Protein) -> Tensor:
+
+    dist_mat = torch.cdist(graph.node_position, graph.node_position)
+
+    return dist_mat[edge_list[:, 0], edge_list[:, 1]]
+
+
+# -------------------------------- obsolete ------------------------------------
 
 
 @R.register("layers.geometry.HydrogenBondEdge")
