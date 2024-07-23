@@ -2,7 +2,7 @@ output_dir: ~/scratch/protein_output
 
 dataset:
   class: EnzymeCommission
-  path: ~/scratch/protein-datasets/protonated/
+  path: ~/scratch/protein-datasets/raw/
   test_cutoff: 0.95
   atom_feature: null
   bond_feature: null
@@ -13,34 +13,24 @@ dataset:
 task:
   class: MultipleBinaryClassification
   model:
-    class: RGCN
+    class: GCN
     input_dim: 21
     hidden_dims: [512, 512, 512, 512, 512, 512]
     batch_norm: True
     concat_hidden: True
     short_cut: True
     readout: 'sum'
-    num_relation: 8
   graph_construction_model:
     class: BondNetworkConstruction
     node_layers:
       - class: AlphaCarbonNode
     edge_layers:
-      - class: PeptideBondEdge
-      - class: GetContactsEdge
-        contact_type: 'hb'
-      - class: GetContactsEdge
-        contact_type: 'sb'
-      - class: GetContactsEdge
-        contact_type: 'pc'
-      - class: GetContactsEdge
-        contact_type: 'ps'
-      - class: GetContactsEdge
-        contact_type: 'ts'
-      - class: GetContactsEdge
-        contact_type: 'vdw'
-      - class: GetContactsEdge
-        contact_type: 'hp'
+      - class: SpatialEdge
+        radius: 10.0
+        min_distance: 5
+      - class: GaussianDistanceSampleEdge
+        m: 10.0
+        fn: 'sqrt'
     edge_feature: gearnet
   criterion: bce
   num_mlp_layer: 3

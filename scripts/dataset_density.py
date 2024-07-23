@@ -5,6 +5,7 @@ from tqdm.contrib.concurrent import process_map
 
 sys.path.append(os.getcwd())
 
+import math
 import plotly.graph_objects as go
 from torch import Tensor
 
@@ -15,13 +16,14 @@ from torchdrug.layers.geometry import AlphaCarbonNode
 from torchdrug.layers.geometry import SpatialEdge
 
 from prot_graph.torchdrug.layers.graph.edge import (
-    CompleteEdge, PeptideBondEdge, GetContactsEdge
+    CompleteEdge, SampleEdge, PeptideBondEdge, GetContactsEdge
 )
 from prot_graph.torchdrug.layers.graph.graph import BondNetworkConstruction
 
 
 layers = [
     CompleteEdge(),
+    SampleEdge(CompleteEdge(), fn=lambda n: math.sqrt(n), p=6.8),
     SpatialEdge(radius=10.0, min_distance=0, max_num_neighbors=int(1e10)),
     PeptideBondEdge(),
     GetContactsEdge("hb"),
@@ -34,6 +36,7 @@ layers = [
 ]
 layer_names = [
     "Complete",
+    "Complete (h-bond approx.)",
     "Spatial (r=10 Å)",
     "Peptide bonds",
     "Hydrogen bonds",

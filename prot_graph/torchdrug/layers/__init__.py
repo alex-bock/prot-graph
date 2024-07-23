@@ -1,4 +1,7 @@
 
 from .graph import CentroidNode
-from .graph import HydrogenBondEdge, PeptideBondEdge, DisulfideBridgeEdge
+from .graph import (
+    PeptideBondEdge, GetContactsEdge, CompleteEdge, SampleEdge,
+    GaussianDistanceSampleEdge
+)
 from .graph import BondNetworkConstruction
