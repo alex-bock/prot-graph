@@ -1,6 +1,7 @@
 
 from typing import Callable, Tuple
 
+import math
 import numpy as np
 from scipy.stats import norm, halfnorm
 
@@ -99,7 +100,7 @@ class CompleteEdge(nn.Module, Configurable):
 
     def forward(self, graph: Protein) -> Tuple[torch.Tensor, int]:
 
-        node_is = torch.arange(len(graph.residue2graph))
+        node_is = torch.arange(len(graph.residue2graph)).to(graph.device)
         pairs = torch.cat(
             [
                 torch.combinations(node_is[graph.residue2graph == i])
@@ -134,7 +135,9 @@ class SampleEdge(nn.Module, Configurable):
         self.sampler = np.random.default_rng(0)
 
         self._fn = fn
-        if self._fn is None:
+        if self._fn == "sqrt":
+            self._fn = lambda n: math.sqrt(n)
+        elif self._fn is None:
             self._fn = lambda n: n
         self.fn = lambda n: p * self._fn(n)
 
@@ -171,7 +174,7 @@ class SampleEdge(nn.Module, Configurable):
         ]
         n_base_edges = len(base_graph_edge_list_unique)
 
-        weights = weights[base_graph_edge_list_unique_idx]
+        weights = weights[base_graph_edge_list_unique_idx.cpu()]
         weights /= weights.sum()
 
         sample_size = min(int(self.fn(n_base_edges)), n_base_edges)
@@ -206,7 +209,7 @@ class GaussianDistanceSampleEdge(SampleEdge):
         base_graph_edge_list, i = self.base_edge_layer(graph)
 
         distances = get_edge_distances(base_graph_edge_list, graph)
-        weights = self.model.pdf(distances, loc=self.m, scale=self.s)
+        weights = self.model.pdf(distances.cpu(), loc=self.m, scale=self.s)
 
         edge_list = self.sample(base_graph_edge_list, weights=weights)
         edge_list = add_reverse_edges(edge_list)
