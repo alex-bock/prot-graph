@@ -24,6 +24,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--missing_h", action="store_true")
     parser.add_argument("--prot", action="store_true")
     parser.add_argument("--dest_dir", type=str, default=None)
+    parser.add_argument("--tag", action="store_true")
 
     return parser.parse_args()
 
@@ -92,9 +93,10 @@ if __name__ == "__main__":
     else:
         dest_dir = Path(arguments.dest_dir)
 
-    dataset_tag = str(int(time.time()))
-    dest_dir = dest_dir.joinpath(dataset_tag)
-    dest_dir.mkdir(parents=True)
+    if arguments.tag:
+        dataset_tag = str(int(time.time()))
+        dest_dir = dest_dir.joinpath(dataset_tag)
+    dest_dir.mkdir(parents=True, exist_ok=True)
 
     with open(dest_dir.joinpath("config.json"), "w") as f:
         json.dump(vars(arguments), f)
