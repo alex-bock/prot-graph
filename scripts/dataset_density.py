@@ -16,12 +16,13 @@ from torchdrug.layers.geometry import AlphaCarbonNode
 from torchdrug.layers.geometry import SpatialEdge
 
 from prot_graph.torchdrug.layers.graph.edge import (
-    CompleteEdge, SampleEdge, PeptideBondEdge, GetContactsEdge
+    CompleteEdge, SampleEdge, PeptideBondEdge, GetContactsEdge, DelaunayEdge
 )
 from prot_graph.torchdrug.layers.graph.graph import BondNetworkConstruction
 
 
 layers = [
+    DelaunayEdge(),
     CompleteEdge(),
     SampleEdge(CompleteEdge(), fn=lambda n: math.sqrt(n), p=6.8),
     SpatialEdge(radius=10.0, min_distance=0, max_num_neighbors=int(1e10)),
@@ -35,6 +36,7 @@ layers = [
     GetContactsEdge("ts")
 ]
 layer_names = [
+    "Delaunay",
     "Complete",
     "Complete (h-bond approx.)",
     "Spatial (r=10 Å)",

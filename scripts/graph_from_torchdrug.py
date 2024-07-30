@@ -12,7 +12,7 @@ from torchdrug.layers.geometry import SpatialEdge
 
 from prot_graph.torchdrug.layers.graph.edge import (
     PeptideBondEdge, GetContactsEdge, CompleteEdge, SampleEdge,
-    GaussianDistanceSampleEdge
+    GaussianDistanceSampleEdge, DelaunayEdge
 )
 from prot_graph.torchdrug.layers.graph.graph import BondNetworkConstruction
 
@@ -40,16 +40,16 @@ if __name__ == "__main__":
                 radius=10.0, min_distance=0, max_num_neighbors=int(1e10)
             ),
             PeptideBondEdge(),
-            SampleEdge(CompleteEdge(), fn=lambda n: math.sqrt(n), p=18.5),
             GetContactsEdge("hb"),
             GetContactsEdge("hp"),
             GetContactsEdge("vdw"),
             GetContactsEdge("sb"),
             GetContactsEdge("pc"),
             GetContactsEdge("ps"),
-            GetContactsEdge("ts")
+            GetContactsEdge("ts"),
+            DelaunayEdge()
         ]
     )
     graph_pack = graph_constructor(pack)
     graph = graph_pack[0]
-    visualize(graph, hide_nodes=True)
+    visualize(graph)
