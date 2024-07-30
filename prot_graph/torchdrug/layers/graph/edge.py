@@ -1,9 +1,10 @@
 
-from typing import Callable, Tuple
+from typing import Callable, Tuple, Optional
 
 import math
 import numpy as np
 from scipy.stats import norm, halfnorm
+from scipy.spatial import Delaunay
 
 import torch
 from torch import nn, Tensor
@@ -160,7 +161,7 @@ class SampleEdge(nn.Module, Configurable):
         ).long(), i
 
     def sample(
-        self, base_graph_edge_list: Tensor, weights: Tensor = None
+        self, base_graph_edge_list: Tensor, weights: Optional[Tensor] = None
     ) -> Tensor:
 
         if weights is None:
@@ -222,6 +223,39 @@ class GaussianDistanceSampleEdge(SampleEdge):
                 ).t().unsqueeze(dim=1)
             ), dim=1
         ).long(), i
+
+
+@R.register("layers.geometry.DelaunayEdge")
+class DelaunayEdge(nn.Module, Configurable):
+
+    atom2res = False
+
+    def __init__(self):
+
+        super(DelaunayEdge, self).__init__()
+
+        return
+    
+    def forward(self, graph: Protein) -> Tuple[Tensor, int]:
+
+        triangulation = Delaunay(graph.node_position.cpu(), qhull_options="QJ")
+        simplices = Tensor(triangulation.simplices, device=graph.device)
+
+        pairs = torch.cat(
+            [torch.combinations(simplex) for simplex in simplices]
+        )
+        edge_list = torch.cat(
+            (
+                pairs,
+                torch.zeros(
+                    len(pairs), device=pairs.device
+                ).t().unsqueeze(dim=1)
+            ), dim=1
+        ).long()
+        edge_list = add_reverse_edges(edge_list)
+        edge_list = remove_duplicates(edge_list)
+
+        return edge_list, 1
 
 
 # ---------------------------- utility functions -------------------------------
