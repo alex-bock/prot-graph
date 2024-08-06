@@ -1,0 +1,54 @@
+output_dir: ~/scratch/protein_output
+
+dataset:
+  class: EnzymeCommission
+  path: ~/scratch/protein-datasets/raw/
+  test_cutoff: 0.95
+  atom_feature: null
+  bond_feature: null
+  transform:
+    class: ProteinView
+    view: residue
+
+task:
+  class: AttributeMasking
+  mask_rate: 0.15
+  num_mlp_layer: 2
+  model:
+    class: GCN
+    input_dim: 21
+    hidden_dims: [512, 512, 512, 512, 512, 512]
+    batch_norm: True
+    concat_hidden: True
+    short_cut: True
+    readout: 'sum'
+  graph_construction_model:
+    class: BondNetworkConstruction
+    node_layers:
+      - class: AlphaCarbonNode
+    edge_layers:
+      - class: SpatialEdge
+        radius: 10.0
+        min_distance: 5
+    edge_feature: gearnet
+  criterion: bce
+  num_mlp_layer: 3
+  metric: ['auprc@micro', 'f1_max']
+
+optimizer:
+  class: Adam
+  lr: 1.0e-3
+
+engine:
+  gpus: {{ gpus }}
+  batch_size: 8
+  log_interval: 1000
+
+save_interval: 5
+
+train:
+  num_epoch: 100
+
+wandb: {{ wandb }}
+
+project: 'prot-graph-res_type'
