@@ -72,6 +72,8 @@ if __name__ == "__main__":
         logger.warning("Config file: %s" % args.config)
         logger.warning(pprint.pformat(cfg))
 
+    print(cfg.project)
+    exit()
     dataset = core.Configurable.load_config_dict(cfg.dataset)
     solver, scheduler = util.build_downstream_solver(cfg, dataset)
 

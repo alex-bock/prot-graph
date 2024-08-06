@@ -54,3 +54,5 @@ train:
   num_epoch: 100
 
 wandb: {{ wandb }}
+
+project: 'prot-graph-ec'

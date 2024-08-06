@@ -136,7 +136,7 @@ def build_downstream_solver(cfg, dataset):
     )
 
     if cfg.wandb is not None:
-        engine_logger = core.WandbLogger(project="prot-graph", name=cfg.wandb)
+        engine_logger = core.WandbLogger(project=cfg.project, name=cfg.wandb)
         solver.meter = core.Meter(
             log_interval=cfg.engine.log_interval, silent=solver.rank > 0,
             logger=engine_logger

@@ -2,6 +2,7 @@
 import os
 import sys
 from tqdm.contrib.concurrent import process_map
+from tqdm import tqdm
 
 sys.path.append(os.getcwd())
 
@@ -73,7 +74,7 @@ if __name__ == "__main__":
     )
 
     X = Tensor(
-        process_map(count_edges, [protein["graph"] for protein in dataset])
+        [count_edges(protein["graph"]) for protein in tqdm(dataset)]
     ).to(int)
     print(X)
 
