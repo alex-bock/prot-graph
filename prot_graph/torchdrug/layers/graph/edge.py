@@ -239,7 +239,7 @@ class DelaunayEdge(nn.Module, Configurable):
     def forward(self, graph: Protein) -> Tuple[Tensor, int]:
 
         triangulation = Delaunay(graph.node_position.cpu(), qhull_options="QJ")
-        simplices = Tensor(triangulation.simplices, device=graph.device)
+        simplices = Tensor(triangulation.simplices).to(graph.device)
 
         pairs = torch.cat(
             [torch.combinations(simplex) for simplex in simplices]
