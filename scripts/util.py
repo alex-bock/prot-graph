@@ -15,7 +15,7 @@ from torch.optim import lr_scheduler
 from torchdrug import core, utils, datasets, models, tasks
 from torchdrug.utils import comm
 
-from prot_graph.torchdrug import layers
+from prot_graph import layers
 
 
 logger = logging.getLogger(__file__)
