@@ -2,7 +2,7 @@ output_dir: ~/scratch/protein_output
 
 dataset:
   class: EnzymeCommission
-  path: ~/scratch/protein-datasets/raw/
+  path: ~/scratch/protein-datasets/EnzymeCommission/raw/
   test_cutoff: 0.95
   atom_feature: null
   bond_feature: null
