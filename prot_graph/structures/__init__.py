@@ -1,2 +1,0 @@
-
-from .pdb import PDBStructure
