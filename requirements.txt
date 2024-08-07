@@ -6,7 +6,7 @@ scikit-learn~=1.3.2
 scipy~=1.11.4
 wandb~=0.17.0
 
--e git+https://git@github.com/alex-bock/torchdrug-gc@getcontacts#egg=torchdrug_gc
+-e git+https://git@github.com/alex-bock/torchdrug@dev#egg=torchdrug
 
 # testing
 coverage~=7.3.2
