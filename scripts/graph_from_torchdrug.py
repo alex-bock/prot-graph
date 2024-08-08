@@ -10,11 +10,11 @@ from torchdrug.data import Protein, PackedProtein
 from torchdrug.layers.geometry import AlphaCarbonNode
 from torchdrug.layers.geometry import SpatialEdge
 
-from prot_graph.torchdrug.layers.graph.edge import (
+from prot_graph.layers.graph.edge import (
     PeptideBondEdge, GetContactsEdge, CompleteEdge, SampleEdge,
     GaussianDistanceSampleEdge
 )
-from prot_graph.torchdrug.layers.graph.graph import BondNetworkConstruction
+from prot_graph.layers.graph.graph import BondNetworkConstruction
 
 from prot_graph.util import load_contacts, visualize
 

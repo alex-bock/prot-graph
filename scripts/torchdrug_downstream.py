@@ -16,7 +16,7 @@ from torch.optim import lr_scheduler
 from torchdrug import core, models, tasks, datasets, utils
 from torchdrug.utils import comm
 
-from prot_graph.torchdrug import util
+import util
 
 
 def train_and_validate(cfg, solver, scheduler):
