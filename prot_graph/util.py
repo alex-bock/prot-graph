@@ -1,17 +1,16 @@
 
+from typing import Union
+
 import pandas as pd
 import torch
 from torch import Tensor
 
 import plotly.graph_objects as go
-from plotly.colors import sample_colorscale
-from sklearn.preprocessing import minmax_scale
+import plotly.express as px
 
 from torchdrug.data import Protein
 
-
-CONTACT2ID = {"hb": 4, "sb": 5, "pc": 6, "ps": 7, "ts": 8, "hp": 9, "vdw": 10}
-ID2CONTACT = {v: k for k, v in CONTACT2ID.items()}
+from .constants import ATOM_TYPE2ID, ID2ATOM_TYPE, CONTACT2ID
 
 
 def load_contacts(protein: Protein, contacts_fp: str):
@@ -119,15 +118,31 @@ def load_contacts(protein: Protein, contacts_fp: str):
 
 def visualize(
     protein: Protein, color_node_by: str = "residue_type",
-    hide_nodes: bool = False
+    separate_chains: bool = False, hide_nodes: bool = False
 ):
 
     fig = go.Figure()
+    n_layers = protein.edge_list[:, 2].max() + 1
 
-    if not hide_nodes:
-        plot_nodes(protein, fig, color_by=color_node_by)
-
-    draw_edges(protein, fig)
+    if separate_chains:
+        chain_ids = protein.chain_id.unique()
+        for chain_id in chain_ids:
+            if len(protein.chain_id) == len(protein.atom2residue):
+                chain = protein.subgraph(protein.chain_id == chain_id)
+            else:
+                chain = protein.subgraph(
+                    protein.chain_id[protein.atom2residue] == chain_id
+                )
+            if not hide_nodes:
+                plot_nodes(
+                    chain, fig, color_by=color_node_by, chain=chain_id.item()
+                )
+            draw_edges(chain, fig, chain=chain_id.item(), n_layers=n_layers)
+        fig.update_layout(legend_groupclick="toggleitem")
+    else:
+        if not hide_nodes:
+            plot_nodes(protein, fig, color_by=color_node_by)
+        draw_edges(protein, fig)
 
     fig.show()
 
@@ -135,27 +150,30 @@ def visualize(
 
 
 def plot_nodes(
-    protein: Protein, fig: go.Figure, color_by: str = "residue_type"
+    protein: Protein, fig: go.Figure, color_by: str = "residue_type",
+    chain: str = None
 ):
 
     if color_by == "residue_type":
         vals = protein.residue_type[protein.atom2residue]
         val_name_dict = protein.id2residue
-    elif color_by == "atom_name":
-        vals = protein.atom_name
-        atom_symbols = [
-            protein.id2atom_name[val.item()][0] for val in vals
+        color_scale = px.colors.qualitative.Dark24
+    elif color_by == "atom_type":
+        atom_types = [
+            protein.id2atom_name[s.item()][0]
+            for s in protein.atom_name
         ]
-        val_name_dict = {ord(x): x for x in atom_symbols}
-        vals = torch.tensor([ord(x) for x in atom_symbols])
+        vals = Tensor([ATOM_TYPE2ID[x] for x in atom_types])
+        val_name_dict = ID2ATOM_TYPE
+        color_scale = px.colors.qualitative.Dark2
+    elif color_by == "chain":
+        vals = protein.chain_id[protein.atom2residue] - 1
+        val_name_dict = {v.item(): int(v.item() + 1) for v in vals.unique()}
+        color_scale = px.colors.qualitative.D3
 
+    color_scale = color_scale[:len(val_name_dict.keys())]
+    val_color_map = {i: color_scale[i] for i in range(len(color_scale))}
     val_set = vals.unique()
-    color_scale = sample_colorscale(
-        "viridis", minmax_scale(range(len(val_set)))
-    )
-    val_color_map = {
-        val.item(): color_scale[i] for i, val in enumerate(val_set)
-    }
 
     for val in val_set:
         val = val.item()
@@ -172,49 +190,56 @@ def plot_nodes(
                     size=3,
                     color=val_color_map[val]
                 ),
-                text=val,
                 hoverinfo="text",
-                name=f"{color_by}: {val_name}"
+                text=val_name,
+                name=f"{color_by}: {val_name}",
+                legendgroup=chain,
+                legendgrouptitle=dict(text=f"chain {chain}")
             )
         )
 
     return
 
 
-def draw_edges(protein: Protein, fig: go.Figure):
+def draw_edges(
+    protein: Protein, fig: go.Figure, chain: str = None,
+    n_layers: Union[int, None] = None
+):
 
-    relations = protein.edge_list[:, 2]
-    relation_set = relations.unique()
+    layer_ids = protein.edge_list[:, 2]
+    if n_layers is None:
+        n_layers = layer_ids.max() + 1
 
-    for relation in relation_set:
-        relation = relation.item()
-        edges = protein.edge_list[relations == relation]
+    for layer in range(n_layers):
+        edges = protein.edge_list[layer_ids == layer]
+        if len(edges) == 0:
+            continue
         fig.add_trace(
             go.Scatter3d(
                 x=torch.stack(
                     [
                         protein.node_position[edges[:, 0]][:, 0],
                         protein.node_position[edges[:, 1]][:, 0],
-                        torch.tensor([float("nan")] * len(edges))
+                        Tensor([float("nan")] * len(edges))
                     ]).t().flatten(),
                 y=torch.stack(
                     [
                         protein.node_position[edges[:, 0]][:, 1],
                         protein.node_position[edges[:, 1]][:, 1],
-                        torch.tensor([float("nan")] * len(edges))
+                        Tensor([float("nan")] * len(edges))
                     ]).t().flatten(),
                 z=torch.stack(
                     [
                         protein.node_position[edges[:, 0]][:, 2],
                         protein.node_position[edges[:, 1]][:, 2],
-                        torch.tensor([float("nan")] * len(edges))
+                        Tensor([float("nan")] * len(edges))
                     ]).t().flatten(),
                 mode="lines",
+                line=dict(color=px.colors.qualitative.Vivid[layer]),
                 opacity=0.5,
-                name=relation
-                # name={
-                #     v: k for k, v in (protein.bond2id | CONTACT2ID).items()
-                # }[relation]
+                legendgroup=chain,
+                legendgrouptitle=dict(text=f"chain {chain}"),
+                name=f"Layer {layer + 1}"
             )
         )
 
