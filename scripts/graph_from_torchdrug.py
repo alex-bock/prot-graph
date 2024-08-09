@@ -23,9 +23,6 @@ if __name__ == "__main__":
     contacts_fp = sys.argv[2]
     protein = load_contacts(protein, contacts_fp)
     visualize(protein, color_node_by="atom_type")
-    visualize(protein, color_node_by="residue_type")
-    visualize(protein, color_node_by="atom_type", separate_chains=True)
-    visualize(protein, color_node_by="residue_type", separate_chains=True)
 
     pack = Protein.pack([protein])
     graph_constructor = BondNetworkConstruction(
@@ -46,8 +43,4 @@ if __name__ == "__main__":
     )
     graph_pack = graph_constructor(pack)
     graph = graph_pack[0]
-    visualize(graph, color_node_by="atom_type")
     visualize(graph, color_node_by="residue_type")
-    visualize(graph, color_node_by="atom_type", separate_chains=True)
-    visualize(graph, color_node_by="residue_type", separate_chains=True)
-    visualize(graph, color_node_by="chain")
