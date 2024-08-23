@@ -16,10 +16,10 @@ from torchdrug.transforms import ProteinView
 from torchdrug.layers.geometry import AlphaCarbonNode
 from torchdrug.layers.geometry import SpatialEdge
 
-from prot_graph.torchdrug.layers.graph.edge import (
+from prot_graph.layers.graph.edge import (
     CompleteEdge, SampleEdge, PeptideBondEdge, GetContactsEdge
 )
-from prot_graph.torchdrug.layers.graph.graph import BondNetworkConstruction
+from prot_graph.layers.graph.graph import BondNetworkConstruction
 
 
 layers = [

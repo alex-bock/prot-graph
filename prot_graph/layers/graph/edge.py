@@ -12,8 +12,8 @@ from torchdrug.core import Configurable, Registry as R
 from torchdrug.data import Protein
 from torchdrug.layers.geometry import SpatialEdge
 
-from ....graphs.constants import HB_ATOMS, PEP_ATOMS, DB_ATOMS
-from ....util import CONTACT2ID
+from ...constants import HB_ATOMS, PEP_ATOMS, DB_ATOMS
+from ...util import CONTACT2ID
 
 
 @R.register("layers.geometry.PeptideBondEdge")
