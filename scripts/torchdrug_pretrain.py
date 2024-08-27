@@ -3,12 +3,15 @@ import sys
 import math
 import pprint
 
+sys.path.append(os.getcwd())
+
 import torch
 
 from torchdrug import core, models, tasks, datasets, utils
 from torchdrug.utils import comm
+from prot_graph import datasets
 
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+# sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 import util
 
