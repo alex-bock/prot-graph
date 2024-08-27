@@ -211,4 +211,12 @@ def build_pretrain_solver(cfg, dataset):
     optimizer = core.Configurable.load_config_dict(cfg.optimizer)
     solver = core.Engine(task, dataset, None, None, optimizer, **cfg.engine)
 
+    if cfg.wandb is not None:
+        engine_logger = core.WandbLogger(project=cfg.project, name=cfg.wandb)
+        solver.meter = core.Meter(
+            log_interval=cfg.engine.log_interval, silent=solver.rank > 0,
+            logger=engine_logger
+        )
+        solver.meter.log_config(task.config_dict())
+
     return solver
