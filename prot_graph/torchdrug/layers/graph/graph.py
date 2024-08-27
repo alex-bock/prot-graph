@@ -32,13 +32,10 @@ class BondNetworkConstruction(GraphConstruction):
         num_edges = list()
         num_relations = list()
         for layer in self.edge_layers:
-            if hasattr(layer, "atom2res") and layer.atom2res:
-                edges, n_relation = layer(protein)
-                edges = self.to_res_edges(edges, protein)
-            else:
-                edges, n_relation = layer(res_graph)
-            edge_list.append(edges)
-            num_edges.append(len(edges))
+            edges, n_relation = layer(protein)
+            res_edges = self.to_res_edges(edges, protein)
+            edge_list.append(res_edges)
+            num_edges.append(len(res_edges))
             num_relations.append(n_relation)
 
         edge_list = torch.cat(edge_list)
