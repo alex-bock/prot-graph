@@ -37,9 +37,6 @@ task:
         k: 10
         min_distance: 5
     edge_feature: gearnet
-  criterion: bce
-  num_mlp_layer: 3
-  metric: ['auprc@micro', 'f1_max']
 
 optimizer:
   class: Adam

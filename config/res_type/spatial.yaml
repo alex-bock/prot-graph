@@ -1,9 +1,8 @@
 output_dir: ~/scratch/protein_output
 
 dataset:
-  class: EnzymeCommission
-  path: ~/scratch/protein-datasets/raw/
-  test_cutoff: 0.95
+  class: ProteinDataset
+  path: ~/scratch/protein-datasets/ProteinDataset/raw/
   atom_feature: null
   bond_feature: null
   transform:
@@ -31,9 +30,6 @@ task:
         radius: 10.0
         min_distance: 5
     edge_feature: gearnet
-  criterion: bce
-  num_mlp_layer: 3
-  metric: ['auprc@micro', 'f1_max']
 
 optimizer:
   class: Adam

@@ -3,7 +3,6 @@ output_dir: ~/scratch/protein_output
 dataset:
   class: EnzymeCommission
   path: ~/scratch/protein-datasets/raw/
-  test_cutoff: 0.95
   atom_feature: null
   bond_feature: null
   transform:
@@ -43,9 +42,6 @@ task:
       - class: GetContactsEdge
         contact_type: 'hp'
     edge_feature: gearnet
-  criterion: bce
-  num_mlp_layer: 3
-  metric: ['auprc@micro', 'f1_max']
 
 optimizer:
   class: Adam

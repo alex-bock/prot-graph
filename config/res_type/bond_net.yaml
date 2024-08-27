@@ -44,9 +44,6 @@ task:
       - class: GetContactsEdge
         contact_type: 'hp'
     edge_feature: gearnet
-  criterion: bce
-  num_mlp_layer: 3
-  metric: ['auprc@micro', 'f1_max']
 
 optimizer:
   class: Adam
