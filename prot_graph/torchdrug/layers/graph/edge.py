@@ -158,25 +158,3 @@ class MSTEdge(nn.Module, core.Configurable):
         final_edge_list = torch.cat([mst_edge_list, remainder_edge_list])
 
         return final_edge_list, i
-
-@R.register("layers.geometry.SampleEdge")
-class SampleEdge(nn.Module, core.Configurable):
-
-    atom2res = False
-
-    def __init__(self, base_edge_layer: nn.Module, p: float = 1.0):
-
-        super(SampleEdge, self).__init__()
-
-        self.base_edge_layer = base_edge_layer
-        self.sampler = np.random.default_rng(0)
-        self.p = p
-
-        return
-
-    def forward(self, graph: data.Protein):
-
-        base_graph_edge_list, i = self.base_edge_layer(graph)
-        n_base_edges = len(base_graph_edge_list)
-
-        return base_graph_edge_list[self.sampler.choice(n_base_edges, size=min(int(n_base_edges * self.p), n_base_edges), replace=False)], i
