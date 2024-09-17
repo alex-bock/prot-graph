@@ -5,13 +5,14 @@ import sys
 sys.path.append(os.getcwd())
 
 from torchdrug.data import Protein, PackedProtein
+from torchdrug.data.util import load_contacts
 from torchdrug.layers.geometry import AlphaCarbonNode
 from torchdrug.layers.geometry import SpatialEdge
 
 from prot_graph.layers.graph.edge import PeptideBondEdge, GetContactsEdge
 from prot_graph.layers.graph.graph import BondNetworkConstruction
 
-from prot_graph.util import load_contacts, visualize
+from prot_graph.util import visualize
 
 
 if __name__ == "__main__":

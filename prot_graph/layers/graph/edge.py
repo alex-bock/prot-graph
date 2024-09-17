@@ -10,10 +10,10 @@ from torch import nn, Tensor
 
 from torchdrug.core import Configurable, Registry as R
 from torchdrug.data import Protein
+from torchdrug.data.util import CONTACT2ID
 from torchdrug.layers.geometry import SpatialEdge
 
 from ...constants import HB_ATOMS, PEP_ATOMS, DB_ATOMS
-from ...util import CONTACT2ID
 
 
 @R.register("layers.geometry.PeptideBondEdge")

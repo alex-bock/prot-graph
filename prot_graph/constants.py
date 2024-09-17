@@ -29,6 +29,3 @@ DB_ATOMS = ["SG"]
 
 ID2ATOM_TYPE = {0: "U", 1: "C", 2: "H", 3: "N", 4: "O", 5: "P", 6: "S"}
 ATOM_TYPE2ID = {v: k for k, v in ID2ATOM_TYPE.items()}
-
-CONTACT2ID = {"hb": 4, "sb": 5, "pc": 6, "ps": 7, "ts": 8, "hp": 9, "vdw": 10}
-ID2CONTACT = {v: k for k, v in CONTACT2ID.items()}
